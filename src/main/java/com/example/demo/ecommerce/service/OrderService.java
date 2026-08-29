@@ -12,6 +12,8 @@ import com.example.demo.ecommerce.entity.OrderItem;
 import com.example.demo.ecommerce.entity.OrderStatus;
 import com.example.demo.ecommerce.mapper.OrderMapper;
 import com.example.demo.ecommerce.repository.OrderRepository;
+import com.example.demo.user.exception.AppException;
+import com.example.demo.user.exception.ErrorCode;
 
 @Service
 public class OrderService {
@@ -34,14 +36,14 @@ public class OrderService {
 
     public OrderResponse getOrderById(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
         return orderMapper.toResponse(order);
     }
 
     @Transactional
     public OrderResponse updateOrderStatus(Long id, OrderStatus newStatus) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
 
         order.setStatus(newStatus);
         
@@ -51,7 +53,7 @@ public class OrderService {
     @Transactional
     public OrderResponse cancelOrder(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
 
         if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
             throw new RuntimeException("Không thể hủy đơn hàng ở trạng thái này!");
@@ -59,8 +61,6 @@ public class OrderService {
 
         order.setStatus(OrderStatus.CANCELLED);
         Order savedOrder = orderRepository.save(order);
-
-        // Vòng lặp nhả kho cho từng sản phẩm trong đơn
         for (OrderItem item : order.getItems()) {
             inventoryService.releaseInventory(
                 item.getProduct().getId(), 

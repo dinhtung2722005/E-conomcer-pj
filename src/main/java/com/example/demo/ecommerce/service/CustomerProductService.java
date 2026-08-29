@@ -3,9 +3,8 @@ package com.example.demo.ecommerce.service;
 import java.math.BigDecimal;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page; // Giả sử bạn có Enum này (ACTIVE, INACTIVE)
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest; // Giả sử bạn có Enum này (ACTIVE, INACTIVE)
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -20,16 +19,13 @@ import com.example.demo.user.dto_request.PageResponse;
 @Service
 public class CustomerProductService {
 
-    @Autowired
-    private ProductRepository productRepository;
-    
-    @Autowired
-    private InventoryRepository inventoryRepository;
-    
-    // @Autowired
-    // private FlashSaleItemService flashSaleItemService; // Sẽ dùng sau để check giá Flash Sale
+    private final ProductRepository productRepository;
 
-    
+    private final  InventoryRepository inventoryRepository;
+   public CustomerProductService(ProductRepository productRepository,InventoryRepository inventoryRepository){
+        this.inventoryRepository=inventoryRepository;
+        this.productRepository= productRepository;
+   }
    public PageResponse<ProductCustomerResponse> getAllActiveProducts(
             int pageNo, int pageSize, String sortBy, String sortDir, Long categoryId) {
         
@@ -49,8 +45,6 @@ public class CustomerProductService {
         List<ProductCustomerResponse> content = productPage.getContent().stream()
                 .map(this::mapToCustomerResponse)
                 .toList();
-
-        // Sử dụng @Builder từ class PageResponse của bạn
         return PageResponse.<ProductCustomerResponse>builder()
                 .currentPage(productPage.getNumber())
                 .totalPages(productPage.getTotalPages())

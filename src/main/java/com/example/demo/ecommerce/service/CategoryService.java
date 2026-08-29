@@ -36,7 +36,7 @@ public class CategoryService {
     }
     public CategoryResponse getCategoryById(Long id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục có ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.Category_Not_Found));
         return categoryMapper.toCategoryResponse(category);
     }
     @Transactional

@@ -13,7 +13,9 @@ public enum ErrorCode {
     USER_LOCKED(400, "Tài khoản của bạn đã bị khóa"),
     Imgaes_Ivalid(400,"Lỗi hệ thống khi upload ảnh"),
     Product_Not_Found(400,"Không tìm thấy sản phầm"),
-    Category_Not_Found(400,"Không tìm thấy danh mục");
+    Category_Not_Found(400,"Không tìm thấy danh mục"),
+    Flash_Sale_Not_Found(400,"Không tìm thấy chương trình khuyến mãi"),
+    Order_Not_Found(400,"Không tìm thấy hóa đơn");
     
     private final int code;
     private final String message;
