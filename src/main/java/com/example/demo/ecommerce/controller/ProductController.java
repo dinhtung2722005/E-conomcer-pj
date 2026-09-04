@@ -19,7 +19,7 @@ public class ProductController {
         ProductResponse product = productService.createProduct(request);
         ApiResponse<ProductResponse> response = new ApiResponse<>();
         response.setCode(200);
-        response.setMessage("Cập nhật thông tin profile thành công");
+        response.setMessage("Tao product thanh cong");
         response.setResult(product);
         return response;
     }

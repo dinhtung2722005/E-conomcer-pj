@@ -8,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.ecommerce.dto.VoucherCustomerResponse;
+import com.example.demo.ecommerce.entity.UserVoucher;
 import com.example.demo.ecommerce.entity.Voucher;
+import com.example.demo.ecommerce.repository.UserVoucherRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
 
 @Service
@@ -23,7 +25,36 @@ public class CustomerVoucherService {
                 .map(this::mapToCustomerResponse)
                 .toList();
     }
+    @Autowired
+    private UserVoucherRepository userVoucherRepository;
 
+    public void saveVoucherToWallet(Long userId, String code) {
+        Voucher voucher = voucherRepository.findByCode(code)
+                .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại!"));
+
+        if (userVoucherRepository.existsByUserIdAndVoucherId(userId, voucher.getId())) {
+            throw new RuntimeException("Bạn đã lưu mã giảm giá này rồi!");
+        }
+
+        if (LocalDateTime.now().isAfter(voucher.getEndDate())) {
+            throw new RuntimeException("Mã giảm giá đã hết hạn!");
+        }
+        if (voucher.getUsedQuantity() >= voucher.getTotalQuantity()) {
+            throw new RuntimeException("Mã giảm giá đã hết lượt sử dụng!");
+        }
+
+        UserVoucher userVoucher = UserVoucher.builder()
+                .userId(userId)
+                .voucher(voucher)
+                .build();
+        userVoucherRepository.save(userVoucher);
+    }
+
+    public List<VoucherCustomerResponse> getMyVouchers(Long userId) {
+        return userVoucherRepository.findByUserIdAndIsUsedFalse(userId).stream()
+                .map(userVoucher -> mapToCustomerResponse(userVoucher.getVoucher()))
+                .toList();
+    }
     public VoucherCustomerResponse validateVoucher(String code, BigDecimal orderTotalAmount) {
         LocalDateTime now = LocalDateTime.now();
         
