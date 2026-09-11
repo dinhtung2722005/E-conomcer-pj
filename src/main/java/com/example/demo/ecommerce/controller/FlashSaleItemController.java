@@ -1,4 +1,4 @@
-package com.example.demo.ecommerce.controller;
+    package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
@@ -33,13 +33,11 @@ public class FlashSaleItemController {
         return new ApiResponse<>(200, "Thêm sản phẩm vào Flash Sale thành công", flashSaleItemService.addItemToFlashSale(flashSaleId, request));
     }
 
-    // XEM CÁC SẢN PHẨM TRONG 1 CHƯƠNG TRÌNH SALE
     @GetMapping("/flash-sales/{flashSaleId}/items")
     public ApiResponse<List<FlashSaleItemResponse>> getItems(@PathVariable Long flashSaleId) {
         return new ApiResponse<>(200, "Thành công", flashSaleItemService.getItemsByFlashSaleId(flashSaleId));
     }
 
-    // CẬP NHẬT TRỰC TIẾP 1 ITEM
     @PutMapping("/flash-sale-items/{itemId}")
     public ApiResponse<FlashSaleItemResponse> updateItem(
             @PathVariable Long itemId, 
@@ -47,7 +45,6 @@ public class FlashSaleItemController {
         return new ApiResponse<>(200, "Cập nhật thành công", flashSaleItemService.updateFlashSaleItem(itemId, request));
     }
 
-    // XÓA 1 ITEM
     @DeleteMapping("/flash-sale-items/{itemId}")
     public ApiResponse<String> removeItem(@PathVariable Long itemId) {
         flashSaleItemService.removeFlashSaleItem(itemId);
