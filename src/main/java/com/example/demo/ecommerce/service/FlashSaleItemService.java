@@ -1,5 +1,7 @@
 package com.example.demo.ecommerce.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import com.example.demo.ecommerce.dto.FlashSaleItemRequest;
 import com.example.demo.ecommerce.dto.FlashSaleItemResponse;
 import com.example.demo.ecommerce.entity.FlashSale;
 import com.example.demo.ecommerce.entity.FlashSaleItem;
+import com.example.demo.ecommerce.entity.FlashSaleStatus;
 import com.example.demo.ecommerce.entity.Product;
 import com.example.demo.ecommerce.mapper.FlashSaleItemMapper;
 import com.example.demo.ecommerce.repository.FlashSaleItemRepository;
@@ -63,7 +66,6 @@ public class FlashSaleItemService {
                 .toList();
     }
 
-    // 3. CẬP NHẬT THÔNG TIN 1 SẢN PHẨM TRONG FLASH SALE (Đổi giá, thêm số lượng)
     @Transactional
     public FlashSaleItemResponse updateFlashSaleItem(Long itemId, FlashSaleItemRequest request) {
         FlashSaleItem item = flashSaleItemRepository.findById(itemId)
@@ -73,7 +75,6 @@ public class FlashSaleItemService {
             throw new RuntimeException("Số lượng tổng không được nhỏ hơn số lượng đã bán (" + item.getSoldQuantity() + ")");
         }
 
-        // Nếu Admin cố tình đổi sang sản phẩm khác, ta cần check xem sản phẩm mới có hợp lệ không
         if (!item.getProduct().getId().equals(request.getProductId())) {
             throw new RuntimeException("Không được phép thay đổi Sản phẩm gốc. Vui lòng xóa và tạo Item mới!");
         }
@@ -84,12 +85,18 @@ public class FlashSaleItemService {
         return flashSaleItemMapper.toResponse(flashSaleItemRepository.save(item));
     }
 
-    // 4. BỎ SẢN PHẨM KHỎI FLASH SALE
     @Transactional
     public void removeFlashSaleItem(Long itemId) {
         FlashSaleItem item = flashSaleItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Item!"));
         
         flashSaleItemRepository.delete(item);
+    }
+    public BigDecimal getActiveFlashSalePrice(Long productId) {
+        return flashSaleItemRepository.findActiveFlashSalePrice(
+                productId, 
+                FlashSaleStatus.ONGOING, 
+                LocalDateTime.now()
+        ).orElse(null);
     }
 }

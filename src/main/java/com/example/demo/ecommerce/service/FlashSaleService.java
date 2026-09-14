@@ -51,7 +51,13 @@ public class FlashSaleService {
                 .orElseThrow(() -> new AppException(ErrorCode.Flash_Sale_Not_Found));
         return flashSaleMapper.toFlashSaleResponse(flashSale);
     }
-
+    public List<FlashSaleResponse> getActiveFlashSales() {
+        return flashSaleRepository.findByStatus("ACTIVE")
+                .stream()
+                .map(flashSaleMapper::toFlashSaleResponse)
+                .toList();
+    }
+    
     @Transactional
     public FlashSaleResponse updateFlashSale(Long id, FlashSaleRequest request) {
         FlashSale flashSale = flashSaleRepository.findById(id)

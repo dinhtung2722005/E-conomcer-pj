@@ -1,6 +1,7 @@
 package com.example.demo.ecommerce.repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,5 @@ Optional<FlashSale> findFirstByStatusAndStartTimeBeforeAndEndTimeAfter(
             LocalDateTime currentTimeForStart,
             LocalDateTime currentTimeForEnd
     );
+    List<FlashSale> findByStatus(String status);
 }
