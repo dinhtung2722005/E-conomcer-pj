@@ -7,13 +7,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import com.example.demo.user.dto_request.ApiResponse;
 @ControllerAdvice
 public class GlobalHanllerException {
-    // @ExceptionHandler(value= Exception.class)
-    // public ResponseEntity<ApiResponse> handleRuntimeException(Exception ex) {
-    //     ApiResponse<String> response = new ApiResponse<>();
-    //     response.setCode(ErrorCode.UNCAUGHT_EXCEPTION.getCode());
-    //     response.setMessage(ErrorCode.UNCAUGHT_EXCEPTION.getMessage());
-    //     return ResponseEntity.badRequest().body(response);
-    // }
+    @ExceptionHandler(value= Exception.class)
+    public ResponseEntity<ApiResponse> handleRuntimeException(Exception ex) {
+        ApiResponse<String> response = new ApiResponse<>();
+        response.setCode(ErrorCode.UNCAUGHT_EXCEPTION.getCode());
+        response.setMessage(ErrorCode.UNCAUGHT_EXCEPTION.getMessage());
+        return ResponseEntity.badRequest().body(response);
+    }
 
     @ExceptionHandler(value= AppException.class)
     public ResponseEntity<ApiResponse> handleAppException(AppException ex) {

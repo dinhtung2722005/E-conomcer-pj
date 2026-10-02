@@ -33,16 +33,12 @@ public class Voucher {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    // Mã nhập vào (VD: FREESHIP, SALE50)
     @Column(nullable = false, unique = true, length = 50)
     private String code; 
 
     @Column(name = "discount_type", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private DiscountType discountType;
-
-    // Giá trị giảm (VD: 50 nếu là %, hoặc 50000 nếu là FIXED)
     @Column(name = "discount_value", nullable = false, precision = 19, scale = 4)
     private BigDecimal discountValue;
 
@@ -50,7 +46,6 @@ public class Voucher {
     @Column(name = "max_discount_amount", precision = 19, scale = 4)
     private BigDecimal maxDiscountAmount;
 
-    // Đơn hàng tối thiểu mới được áp dụng
     @Column(name = "min_order_value", nullable = false, precision = 19, scale = 4)
     private BigDecimal minOrderValue;
 
@@ -67,7 +62,6 @@ public class Voucher {
     @Column(name = "end_date", nullable = false)
     private LocalDateTime endDate;
 
-    // Khóa lạc quan để xử lý tranh chấp khi nhiều người cùng dùng voucher cuối cùng
     @Version
     private Long version;
 

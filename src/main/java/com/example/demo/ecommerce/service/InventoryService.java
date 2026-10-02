@@ -69,4 +69,18 @@ public class InventoryService {
 
         return inventoryMapper.toResponse(inventoryRepository.save(inventory));
     }
+    @Transactional
+    public void deductInventory(Long productId, Integer quantityToDeduct) {
+        Inventory inventory = inventoryRepository.findByProductId(productId)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm chưa có dữ liệu tồn kho!"));
+
+        if (inventory.getAvailableQuantity() < quantityToDeduct) {
+            throw new RuntimeException("Số lượng tồn kho khả dụng không đủ!");
+        }
+
+        inventory.setAvailableQuantity(inventory.getAvailableQuantity() - quantityToDeduct);
+        inventory.setLockedQuantity(inventory.getLockedQuantity() + quantityToDeduct);
+
+        inventoryRepository.save(inventory);
+    }
 }

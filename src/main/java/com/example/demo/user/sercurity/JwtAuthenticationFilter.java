@@ -8,6 +8,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
-@Slf4j // Lombok sẽ tạo ra biến 'log'
+@Slf4j 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
@@ -68,5 +69,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         
         filterChain.doFilter(request, response);
+        if (jwtUtils.validateJwtToken(jwt)) {
+    try {
+        String username = jwtUtils.getUsernameFromJwtToken(jwt);
+        
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userDetails, 
+                null,
+                userDetails.getAuthorities() // Tự động lấy Role từ UserDetails
+        );
+        
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+        
+    } catch (Exception e) {
+        log.error("Cannot set user authentication: {}", e.getMessage());
     }
+}
+    }
+    
 }

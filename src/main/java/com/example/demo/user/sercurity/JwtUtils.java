@@ -21,7 +21,7 @@ public class JwtUtils {
     @Value("${app.jwt.secret}")
     private String jwtSecret;
     private long refreshExpirationTime;
-    private static final long EXPIRATION_TIME = 900000; // 15 phút
+    private static final long EXPIRATION_TIME = 900000; 
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
