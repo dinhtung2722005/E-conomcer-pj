@@ -70,4 +70,37 @@ public class OrderService {
 
         return orderMapper.toResponse(savedOrder);
     }
+    public List<OrderResponse> getUserOrders(Long userId) {
+        // Lưu ý: Bạn cần vào OrderRepository thêm dòng: List<Order> findByUserId(Long userId);
+        return orderRepository.findByUserId(userId)
+                .stream()
+                .map(orderMapper::toResponse)
+                .toList();
+    }
+
+    // Xem chi tiết đơn hàng (Bắt buộc kiểm tra quyền sở hữu)
+    public OrderResponse getOrderDetail(Long orderId, Long userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền truy cập đơn hàng này!");
+        }
+
+        return orderMapper.toResponse(order);
+    }
+
+    // Khách hàng tự hủy đơn
+    @Transactional
+    public OrderResponse cancelOrderByUser(Long orderId, Long userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền hủy đơn hàng này!");
+        }
+
+        // Tận dụng lại chính hàm cancelOrder gốc của bạn để xử lý logic hoàn kho
+        return this.cancelOrder(orderId);
+    }
 }
