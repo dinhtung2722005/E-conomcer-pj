@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
@@ -21,9 +20,15 @@ public class CloudinaryService {
     @Value("${cloudinary.folder.avatar}")
     private String folder;
 
-    public String uploadImage(MultipartFile file) throws IOException {
+    /**
+     * Upload ảnh lên Cloudinary, trả về URL công khai.
+     *
+     * <p>Nhận {@code byte[]} thay vì {@code MultipartFile} để tầng controller có thể
+     * kiểm tra nội dung file trước khi gửi đi (xem {@code ProfileController}).
+     */
+    public String uploadImage(byte[] content) throws IOException {
         Map<?, ?> uploadResult = cloudinary.uploader().upload(
-                file.getBytes(),
+                content,
                 ObjectUtils.asMap(
                         "folder", folder,
                         "transformation", "c_fill,w_500,h_500"));

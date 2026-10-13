@@ -15,6 +15,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -104,6 +107,40 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
     public ResponseEntity<ApiResponse<Void>> handleNotFound(Exception ex) {
         return build(ErrorCode.ENDPOINT_NOT_FOUND, ErrorCode.ENDPOINT_NOT_FOUND.getMessage());
+    }
+
+    /**
+     * File tải lên vượt quá giới hạn multipart.
+     *
+     * <p>Ngoại lệ này được ném ra TRƯỚC khi vào controller (ở tầng multipart resolver),
+     * nên không thể xử lý bằng cách kiểm tra kích thước trong controller.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return build(ErrorCode.FILE_TOO_LARGE, ErrorCode.FILE_TOO_LARGE.getMessage());
+    }
+
+    /**
+     * Request không phải {@code multipart/form-data}, hoặc thiếu phần file đính kèm.
+     *
+     * <p>Handler này phải đứng sau {@link #handleMaxUploadSize} về độ ưu tiên —
+     * Spring tự chọn handler khớp nhất trong cây kế thừa, nên file quá lớn vẫn đi
+     * vào nhánh 413 chứ không rơi vào đây.
+     */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMultipart(MultipartException ex) {
+        return build(ErrorCode.INVALID_REQUEST,
+                "Request phải ở dạng multipart/form-data và có phần file đính kèm");
+    }
+
+    /**
+     * Request đúng dạng multipart nhưng thiếu phần file mà controller yêu cầu
+     * (ví dụ client gửi part tên khác thay vì {@code file}).
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingPart(MissingServletRequestPartException ex) {
+        return build(ErrorCode.INVALID_REQUEST,
+                "Thiếu phần file bắt buộc: " + ex.getRequestPartName());
     }
 
     /**
