@@ -36,14 +36,14 @@ public class OrderService {
 
     public OrderResponse getOrderById(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         return orderMapper.toResponse(order);
     }
 
     @Transactional
     public OrderResponse updateOrderStatus(Long id, OrderStatus newStatus) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
         order.setStatus(newStatus);
         
@@ -53,7 +53,7 @@ public class OrderService {
     @Transactional
     public OrderResponse cancelOrder(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
         if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
             throw new RuntimeException("Không thể hủy đơn hàng ở trạng thái này!");
@@ -81,7 +81,7 @@ public class OrderService {
     // Xem chi tiết đơn hàng (Bắt buộc kiểm tra quyền sở hữu)
     public OrderResponse getOrderDetail(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
         if (!order.getUserId().equals(userId)) {
             throw new RuntimeException("Bạn không có quyền truy cập đơn hàng này!");
@@ -94,7 +94,7 @@ public class OrderService {
     @Transactional
     public OrderResponse cancelOrderByUser(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.Order_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
         if (!order.getUserId().equals(userId)) {
             throw new RuntimeException("Bạn không có quyền hủy đơn hàng này!");

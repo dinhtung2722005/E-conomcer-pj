@@ -48,7 +48,7 @@ public class FlashSaleService {
 
     public FlashSaleResponse getFlashSaleById(Long id) {
         FlashSale flashSale = flashSaleRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Flash_Sale_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.FLASH_SALE_NOT_FOUND));
         return flashSaleMapper.toFlashSaleResponse(flashSale);
     }
     public List<FlashSaleResponse> getActiveFlashSales() {
@@ -61,7 +61,7 @@ public class FlashSaleService {
     @Transactional
     public FlashSaleResponse updateFlashSale(Long id, FlashSaleRequest request) {
         FlashSale flashSale = flashSaleRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Flash_Sale_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.FLASH_SALE_NOT_FOUND));
 
         if (request.getEndTime().isBefore(request.getStartTime()) || request.getEndTime().isEqual(request.getStartTime())) {
             throw new RuntimeException("Thời gian kết thúc phải lớn hơn thời gian bắt đầu!");
@@ -78,7 +78,7 @@ public class FlashSaleService {
     @Transactional
     public void deleteFlashSale(Long id) {
         FlashSale flashSale = flashSaleRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Flash_Sale_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.FLASH_SALE_NOT_FOUND));
         
         flashSaleRepository.delete(flashSale);
     }

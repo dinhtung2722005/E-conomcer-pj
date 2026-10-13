@@ -1,8 +1,8 @@
 package com.example.demo.user.service;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,51 +14,29 @@ import com.example.demo.user.exception.AppException;
 import com.example.demo.user.exception.ErrorCode;
 import com.example.demo.user.repository.AddressRepository;
 import com.example.demo.user.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class AddressService {
-    @Autowired
-    private AddressRepository addressRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-   
-    private AddressResponse convertToResponse(Address address) {
-        String fullAddress = address.getStreet() + ", " + 
-                             address.getWard() + ", " + 
-                             address.getDistrict() + ", " + 
-                             address.getCity();
 
-        return AddressResponse.builder()
-                .id(address.getId())
-                .recipientName(address.getRecipientName())
-                .phoneNumber(address.getPhone())
-                .fullAddress(fullAddress)
-                .isDefault(address.isDefault())
-                .build();
-    }
+    private final AddressRepository addressRepository;
+    private final UserRepository userRepository;
 
-
+    @Transactional(readOnly = true)
     public List<AddressResponse> getUserAddresses(String username) {
-        // Bước 1: Tìm người dùng trong DB
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-                
-        // Bước 2: Lấy danh sách địa chỉ, chuyển sang DTO và trả về
-        List<Address> addresses = addressRepository.findByUser(user);
-        
-        return addresses.stream()
-                .map(address -> convertToResponse(address))
+        User user = findUser(username);
+        return addressRepository.findByUser(user).stream()
+                .map(AddressService::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional
     public AddressResponse addAddress(String username, AddressRequest request) {
-        // Bước 1: Tìm người dùng
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user = findUser(username);
 
         boolean isFirstAddress = addressRepository.findByUser(user).isEmpty();
-
         boolean willBeDefault = request.isDefault() || isFirstAddress;
 
         if (willBeDefault) {
@@ -73,65 +51,74 @@ public class AddressService {
                 .ward(request.getWard())
                 .district(request.getDistrict())
                 .city(request.getCity())
-                .isDefault(willBeDefault) 
+                .isDefault(willBeDefault)
                 .build();
 
-      
-        Address savedAddress = addressRepository.save(newAddress);
-        return convertToResponse(savedAddress);
+        return toResponse(addressRepository.save(newAddress));
     }
 
- 
     @Transactional
     public AddressResponse updateAddress(String username, Long addressId, AddressRequest request) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user = findUser(username);
+        Address address = findOwnedAddress(addressId, user);
 
-        Address existingAddress = addressRepository.findByIdAndUser(addressId, user)
-                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc bạn không có quyền sửa!"));
-
-        boolean isCurrentlyDefault = existingAddress.isDefault();
+        boolean isCurrentlyDefault = address.isDefault();
         boolean wantsToBeDefault = request.isDefault();
 
         if (isCurrentlyDefault && !wantsToBeDefault) {
-             throw new RuntimeException("Vui lòng chọn một địa chỉ khác làm mặc định trước!");
+            throw new AppException(ErrorCode.ADDRESS_DEFAULT_REQUIRED);
         }
 
-       
         if (!isCurrentlyDefault && wantsToBeDefault) {
             addressRepository.resetDefaultAddressForUser(user);
-            existingAddress.setDefault(true);
+            address.setDefault(true);
         }
 
-        existingAddress.setRecipientName(request.getRecipientName());
-        existingAddress.setPhone(request.getPhoneNumber());
-        existingAddress.setStreet(request.getStreet());
-        existingAddress.setWard(request.getWard());
-        existingAddress.setDistrict(request.getDistrict());
-        existingAddress.setCity(request.getCity());
-        
-        Address updatedAddress = addressRepository.save(existingAddress);
-        return convertToResponse(updatedAddress);
+        address.setRecipientName(request.getRecipientName());
+        address.setPhone(request.getPhoneNumber());
+        address.setStreet(request.getStreet());
+        address.setWard(request.getWard());
+        address.setDistrict(request.getDistrict());
+        address.setCity(request.getCity());
+
+        return toResponse(addressRepository.save(address));
     }
 
-   
     @Transactional
     public void deleteAddress(String username, Long addressId) {
-        // Bước 1: Tìm người dùng
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user = findUser(username);
+        Address address = findOwnedAddress(addressId, user);
 
-        // Bước 2: Tìm địa chỉ cần xóa
-        Address addressToDelete = addressRepository.findByIdAndUser(addressId, user)
-                .orElseThrow(() -> new AppException(ErrorCode.INTERNAL_SERVER_ERROR));
-
-        // Bước 3: Kiểm tra an toàn - Cấm xóa địa chỉ đang là mặc định
-        if (addressToDelete.isDefault()) {
-            throw new RuntimeException("Không thể xóa địa chỉ mặc định. Vui lòng chọn địa chỉ khác làm mặc định trước khi xóa!");
+        if (address.isDefault()) {
+            throw new AppException(ErrorCode.ADDRESS_DEFAULT_CANNOT_DELETE);
         }
 
-        // Bước 4: Thực hiện xóa
-        addressRepository.delete(addressToDelete);
+        addressRepository.delete(address);
     }
-    
+
+    private User findUser(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /** Luôn truy vấn theo cặp (id, chủ sở hữu) để không thao tác được địa chỉ của người khác. */
+    private Address findOwnedAddress(Long addressId, User user) {
+        return addressRepository.findByIdAndUser(addressId, user)
+                .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND));
+    }
+
+    private static AddressResponse toResponse(Address address) {
+        String fullAddress = address.getStreet() + ", "
+                + address.getWard() + ", "
+                + address.getDistrict() + ", "
+                + address.getCity();
+
+        return AddressResponse.builder()
+                .id(address.getId())
+                .recipientName(address.getRecipientName())
+                .phoneNumber(address.getPhone())
+                .fullAddress(fullAddress)
+                .isDefault(address.isDefault())
+                .build();
+    }
 }

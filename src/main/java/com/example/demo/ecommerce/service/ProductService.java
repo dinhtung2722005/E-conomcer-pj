@@ -49,7 +49,7 @@ public class ProductService {
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest request){
             Product product = productRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Product_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
             List<Category> categoryList = categoryRepository.findAllById(request.getCategoryIds());
             Set<Category> categories = new HashSet<>(categoryList);
             product.setName(request.getName());
@@ -64,12 +64,12 @@ public class ProductService {
     @Transactional
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Product_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
                 productRepository.delete(product);
     }
     public ProductResponse getProductById(Long id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.Product_Not_Found));
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         return productMapper.toProductResponse(product);
     }
     

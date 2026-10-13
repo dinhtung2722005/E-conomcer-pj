@@ -1,6 +1,8 @@
 package com.example.demo.user.controller;
+
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,48 +15,54 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.user.dto_request.ApiResponse;
 import com.example.demo.user.dto_request.UserCreationRequest;
+import com.example.demo.user.dto_request.UserProfileResponse;
 import com.example.demo.user.dto_request.UserUpdateRequest;
-import com.example.demo.user.entity.User;
+import com.example.demo.user.security.UserPrincipal;
 import com.example.demo.user.service.UserService;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Quản trị người dùng. Toàn bộ endpoint yêu cầu quyền ADMIN
+ * (đã chặn ở tầng URL trong {@code SecurityConfig} và ở đây bằng {@code @PreAuthorize}).
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/users")
+@PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class UserController {
+
     private final UserService userService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
     @PostMapping
-    ApiResponse<User> createUser(@RequestBody UserCreationRequest request) {
-        ApiResponse<User> response = new ApiResponse<>();
-        response.setCode(201);
-        response.setResult(userService.createUser(request));
-        return response;
-        
+    public ApiResponse<UserProfileResponse> createUser(@Valid @RequestBody UserCreationRequest request) {
+        return new ApiResponse<>(201, "Tạo tài khoản thành công", userService.createUser(request));
     }
+
     @GetMapping
-    ApiResponse<List<User>> getAllUsers() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        log.info("Authenticated user: {}", authentication.getName());
-        authentication.getAuthorities().forEach(authority -> log.info("Authority: {}", authority.getAuthority()));
-        ApiResponse<List<User>> response = new ApiResponse<>();
-        response.setCode(200);
-        response.setResult(userService.getAllUsers());
-        return response;
+    public ApiResponse<List<UserProfileResponse>> getAllUsers() {
+        return new ApiResponse<>(200, "Thành công", userService.getAllUsers());
     }
-    @GetMapping("/{id}")                                                                                                    
-    User getUserById(@PathVariable Long id) {
-        return userService.getUserById(id);
+
+    @GetMapping("/{id}")
+    public ApiResponse<UserProfileResponse> getUserById(@PathVariable Long id) {
+        return new ApiResponse<>(200, "Thành công", userService.getUserById(id));
     }
+
     @PutMapping("/{id}")
-    User updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest request) {
-        return userService.updateUser(id, request);
+    public ApiResponse<UserProfileResponse> updateUser(@PathVariable Long id,
+                                                      @Valid @RequestBody UserUpdateRequest request) {
+        return new ApiResponse<>(200, "Cập nhật tài khoản thành công", userService.updateUser(id, request));
     }
+
     @DeleteMapping("/{id}")
-    void deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+    public ApiResponse<Void> deleteUser(@PathVariable Long id) {
+        UserPrincipal current = (UserPrincipal) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        userService.deleteUser(id, current.getId());
+        return new ApiResponse<>(200, "Xóa tài khoản thành công", null);
     }
 }

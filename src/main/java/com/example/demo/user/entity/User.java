@@ -3,6 +3,8 @@ package com.example.demo.user.entity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -36,6 +38,8 @@ public class User extends BaseEntity {
     private String email;
 
     // Lưu mật khẩu đã được mã hóa (Hash)
+    // @JsonIgnore: không bao giờ serialize hash mật khẩu ra response.
+    @JsonIgnore
     @Column(nullable = false, length = 255)
     private String password;
 

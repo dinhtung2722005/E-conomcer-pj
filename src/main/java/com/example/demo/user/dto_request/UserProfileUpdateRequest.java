@@ -1,4 +1,8 @@
 package com.example.demo.user.dto_request;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,9 +13,9 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserProfileUpdateRequest {
-    // Chỉ khai báo những trường cho phép người dùng sửa
-    private String Email; 
-    
-    // private String fullName;
-    // private String phone;
+
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    @Size(max = 100, message = "Email tối đa 100 ký tự")
+    private String email;
 }
