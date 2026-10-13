@@ -12,29 +12,27 @@ mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS ecommerce CHARACTER SET utf8m
 ./mvnw spring-boot:run
 ```
 
-Ứng dụng chạy ở `http://localhost:8080`. Mặc định kết nối `localhost:3306/ecommerce` với `root/123456`
-(có thể ghi đè bằng biến môi trường bên dưới).
+Ứng dụng chạy ở `http://localhost:8080`. Mặc định kết nối `localhost:3306/ecommerce` với `root/123456`.
 
-### Biến môi trường
+### Cấu hình
 
-| Biến | Bắt buộc | Mặc định | Ghi chú |
-|---|---|---|---|
-| `DB_URL` | không | `jdbc:mysql://localhost:3306/ecommerce...` | |
-| `DB_USERNAME` | không | `root` | |
-| `DB_PASSWORD` | **nên đặt** | `123456` | Giá trị mặc định chỉ dành cho máy dev |
-| `JWT_SECRET` | **nên đặt** | sinh ngẫu nhiên mỗi lần khởi động | Chuỗi **Base64 ≥ 256 bit**. Không đặt thì token mất hiệu lực sau mỗi lần restart |
-| `JWT_EXPIRATION_MS` | không | `900000` (15 phút) | Thời gian sống access token |
-| `JWT_REFRESH_EXPIRATION_MS` | không | `604800000` (7 ngày) | Thời gian sống refresh token |
-| `ADMIN_INITIAL_PASSWORD` | không | sinh ngẫu nhiên, in ra log | Mật khẩu admin tạo ở lần chạy đầu |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | không | trống | Thiếu thì tính năng upload avatar tắt |
-| `CORS_ALLOWED_ORIGINS` | không | `http://localhost:3000,http://localhost:5173,http://localhost:8080` | Danh sách origin được phép, phân tách bằng `,` |
-| `ORDER_PENDING_TIMEOUT_MINUTES` | không | `15` | Đơn `PENDING` quá hạn này sẽ bị tự hủy |
+Toàn bộ cấu hình nằm trong `src/main/resources/application.properties` — sửa trực tiếp file đó là chạy được, không cần set biến môi trường.
 
-Sinh `JWT_SECRET`:
+| Property | Mặc định | Ghi chú |
+|---|---|---|
+| `spring.datasource.url` | `jdbc:mysql://localhost:3306/ecommerce...` | |
+| `spring.datasource.username` / `password` | `root` / `123456` | |
+| `app.jwt.secret` | chuỗi Base64 384-bit | **Đổi giá trị này là toàn bộ token đang phát hành mất hiệu lực** |
+| `app.jwt.expiration-ms` | `900000` (15 phút) | Thời gian sống access token |
+| `app.jwt.refresh-expiration-ms` | `86400000` (24 giờ) | Thời gian sống refresh token; đổi thành `604800000` nếu muốn 7 ngày |
+| `cloudinary.*` | — | Thiếu/sai thì chỉ chức năng upload avatar bị tắt |
+| `app.cors.allowed-origins` | `http://localhost:3000,http://localhost:5173,http://localhost:8080` | Danh sách origin của frontend, phân tách bằng `,` |
+| `app.order.pending-timeout-minutes` | `15` | Đơn `PENDING` quá hạn này sẽ bị tự hủy và hoàn kho |
+| `ADMIN_INITIAL_PASSWORD` (biến môi trường) | sinh ngẫu nhiên, in ra log | Mật khẩu admin tạo ở lần chạy đầu, khi chưa có tài khoản nào |
 
-```bash
-openssl rand -base64 48
-```
+> **Khi deploy lên môi trường thật:** biến môi trường có độ ưu tiên cao hơn `application.properties`, nên có thể ghi đè mà không phải sửa code. Tên biến là dạng viết hoa + gạch dưới của property — ví dụ `app.jwt.secret` → `APP_JWT_SECRET`, `cloudinary.api-secret` → `CLOUDINARY_API_SECRET`. Xem `.env.example`.
+
+> **Lưu ý bảo mật:** các giá trị trong `application.properties` (mật khẩu DB, JWT secret, Cloudinary secret) đang nằm trong repo. Nếu repo là công khai, hãy đổi các giá trị này trước khi dùng thật, hoặc chuyển sang biến môi trường như trên.
 
 ## Kiến trúc
 
