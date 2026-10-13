@@ -2,8 +2,6 @@ package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,49 +12,52 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.CategoryRequest;
 import com.example.demo.ecommerce.dto.VoucherRequest;
 import com.example.demo.ecommerce.dto.VoucherResponse;
 import com.example.demo.ecommerce.service.VoucherService;
 import com.example.demo.user.dto_request.ApiResponse;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 @RestController
-@RequestMapping("/api/admin/voucher")
+@RequestMapping("/api/admin/vouchers")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class VoucherController {
 
-    @Autowired
-    private VoucherService voucherService;
+    private final VoucherService voucherService;
 
     @PostMapping
-    public ApiResponse<VoucherResponse> createVoucher(@RequestBody VoucherRequest request) {
-        ApiResponse<VoucherResponse> response = new ApiResponse<>(200,null,voucherService.createVoucher(request));
-        return response;
+    public ApiResponse<VoucherResponse> createVoucher(@Valid @RequestBody VoucherRequest request) {
+        return new ApiResponse<>(201, "Tạo mã giảm giá thành công", voucherService.createVoucher(request));
     }
 
     @GetMapping
     public ApiResponse<List<VoucherResponse>> getAllVouchers() {
-       ApiResponse<List<VoucherResponse>> response = new ApiResponse<>(200,null,voucherService.getAllVouchers());
-       return  response;
+        return new ApiResponse<>(200, "Thành công", voucherService.getAllVouchers());
     }
 
     @GetMapping("/{id}")
     public ApiResponse<VoucherResponse> getVoucherById(@PathVariable Long id) {
-        ApiResponse<VoucherResponse> response = new ApiResponse<>(200,null, voucherService.getVoucherById(id));
-        return response;
+        return new ApiResponse<>(200, "Thành công", voucherService.getVoucherById(id));
     }
 
+    /**
+     * Cập nhật voucher.
+     *
+     * <p>Bản cũ nhận {@code @RequestBody CategoryRequest} (sai kiểu) và chỉ gọi
+     * {@code getVoucherById} — endpoint hoàn toàn không cập nhật gì cả.
+     */
     @PutMapping("/{id}")
-    public ApiResponse<VoucherResponse> updateVoucher(
-            @PathVariable Long id, 
-            @RequestBody CategoryRequest request) {
-           ApiResponse<VoucherResponse>response = new ApiResponse<>(200,null, voucherService.getVoucherById(id));
-           return response;
+    public ApiResponse<VoucherResponse> updateVoucher(@PathVariable Long id,
+                                                      @Valid @RequestBody VoucherRequest request) {
+        return new ApiResponse<>(200, "Cập nhật mã giảm giá thành công", voucherService.updateVoucher(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteVoucher(@PathVariable Long id) {
+    public ApiResponse<Void> deleteVoucher(@PathVariable Long id) {
         voucherService.deleteVoucher(id);
-        return ResponseEntity.ok("Xóa danh mục thành công!");
+        return new ApiResponse<>(200, "Xóa mã giảm giá thành công", null);
     }
 }

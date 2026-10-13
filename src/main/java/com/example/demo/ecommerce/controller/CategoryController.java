@@ -2,8 +2,6 @@ package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,43 +17,42 @@ import com.example.demo.ecommerce.dto.CategoryResponse;
 import com.example.demo.ecommerce.service.CategoryService;
 import com.example.demo.user.dto_request.ApiResponse;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/admin/categories")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class CategoryController {
 
-    @Autowired
-    private CategoryService categoryService;
+    private final CategoryService categoryService;
 
     @PostMapping
-    public ApiResponse<CategoryResponse> createCategory(@RequestBody CategoryRequest request) {
-        ApiResponse<CategoryResponse> response = new ApiResponse<>(200,null,categoryService.create(request));
-        return response;
+    public ApiResponse<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request) {
+        return new ApiResponse<>(201, "Tạo danh mục thành công", categoryService.create(request));
     }
 
     @GetMapping
     public ApiResponse<List<CategoryResponse>> getAllCategories() {
-       ApiResponse<List<CategoryResponse>> response = new ApiResponse<>(200,null,categoryService.getAllCategories());
-       return  response;
+        return new ApiResponse<>(200, "Thành công", categoryService.getAllCategories());
     }
 
     @GetMapping("/{id}")
     public ApiResponse<CategoryResponse> getCategoryById(@PathVariable Long id) {
-        ApiResponse<CategoryResponse> response = new ApiResponse<>(200,null, categoryService.getCategoryById(id));
-        return response;
+        return new ApiResponse<>(200, "Thành công", categoryService.getCategoryById(id));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<CategoryResponse> updateCategory(
-            @PathVariable Long id, 
-            @RequestBody CategoryRequest request) {
-           ApiResponse<CategoryResponse>response = new ApiResponse<>(200,null, categoryService.updateCategory(id, request));
-           return response;
+    public ApiResponse<CategoryResponse> updateCategory(@PathVariable Long id,
+                                                        @Valid @RequestBody CategoryRequest request) {
+        return new ApiResponse<>(200, "Cập nhật danh mục thành công", categoryService.updateCategory(id, request));
     }
 
+    /** Trả về cùng định dạng {@link ApiResponse} như mọi endpoint khác. */
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteCategory(@PathVariable Long id) {
+    public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
-        return ResponseEntity.ok("Xóa danh mục thành công!");
+        return new ApiResponse<>(200, "Xóa danh mục thành công", null);
     }
 }

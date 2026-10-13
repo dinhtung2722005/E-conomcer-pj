@@ -1,8 +1,11 @@
 package com.example.demo.ecommerce.service;
 
+import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,97 +13,159 @@ import com.example.demo.ecommerce.dto.OrderResponse;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderItem;
 import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.entity.UserVoucher;
+import com.example.demo.ecommerce.entity.Voucher;
 import com.example.demo.ecommerce.mapper.OrderMapper;
 import com.example.demo.ecommerce.repository.OrderRepository;
+import com.example.demo.ecommerce.repository.UserVoucherRepository;
+import com.example.demo.ecommerce.repository.VoucherRepository;
 import com.example.demo.user.exception.AppException;
 import com.example.demo.user.exception.ErrorCode;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
-    @Autowired
-    private OrderRepository orderRepository;
-    
-    @Autowired
-    private OrderMapper orderMapper;
+    /**
+     * Các bước chuyển trạng thái hợp lệ.
+     *
+     * <p>Trước đây admin có thể đặt một đơn về bất kỳ trạng thái nào, kể cả
+     * {@code SHIPPED -> PENDING}, làm sai lệch dữ liệu kho và doanh thu.
+     */
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
+            OrderStatus.PENDING, EnumSet.of(OrderStatus.PAID, OrderStatus.CANCELLED),
+            OrderStatus.PAID, EnumSet.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED),
+            OrderStatus.SHIPPED, EnumSet.of(OrderStatus.COMPLETED),
+            OrderStatus.COMPLETED, EnumSet.noneOf(OrderStatus.class),
+            OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class));
 
-    @Autowired
-    private InventoryService inventoryService; 
+    private final OrderRepository orderRepository;
+    private final OrderMapper orderMapper;
+    private final InventoryService inventoryService;
+    private final VoucherRepository voucherRepository;
+    private final UserVoucherRepository userVoucherRepository;
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAll()
-                .stream()
+        return orderRepository.findAll().stream()
                 .map(orderMapper::toResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public OrderResponse getOrderById(Long id) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        return orderMapper.toResponse(order);
+        return orderMapper.toResponse(findOrder(id));
     }
 
     @Transactional
     public OrderResponse updateOrderStatus(Long id, OrderStatus newStatus) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        Order order = findOrder(id);
+        OrderStatus current = order.getStatus();
+
+        if (current == newStatus) {
+            return orderMapper.toResponse(order);
+        }
+        if (!ALLOWED_TRANSITIONS.getOrDefault(current, Set.of()).contains(newStatus)) {
+            throw new AppException(ErrorCode.ORDER_STATUS_INVALID,
+                    "Không thể chuyển đơn hàng từ " + current + " sang " + newStatus);
+        }
+
+        if (newStatus == OrderStatus.PAID) {
+            // Hàng đã bán thật: trừ hẳn khỏi số đang giữ chỗ.
+            for (OrderItem item : order.getItems()) {
+                inventoryService.confirmSale(item.getProduct().getId(), item.getQuantity());
+            }
+        } else if (newStatus == OrderStatus.CANCELLED) {
+            restock(order);
+            refundVoucher(order);
+        }
 
         order.setStatus(newStatus);
-        
         return orderMapper.toResponse(orderRepository.save(order));
     }
 
     @Transactional
     public OrderResponse cancelOrder(Long id) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        Order order = findOrder(id);
 
         if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
-            throw new RuntimeException("Không thể hủy đơn hàng ở trạng thái này!");
+            throw new AppException(ErrorCode.ORDER_STATUS_INVALID,
+                    "Không thể hủy đơn hàng ở trạng thái " + order.getStatus());
         }
+
+        restock(order);
+        refundVoucher(order);
 
         order.setStatus(OrderStatus.CANCELLED);
-        Order savedOrder = orderRepository.save(order);
-        for (OrderItem item : order.getItems()) {
-            inventoryService.releaseInventory(
-                item.getProduct().getId(), 
-                item.getQuantity()
-            );
-        }
-
-        return orderMapper.toResponse(savedOrder);
+        return orderMapper.toResponse(orderRepository.save(order));
     }
+
+    @Transactional(readOnly = true)
     public List<OrderResponse> getUserOrders(Long userId) {
-        // Lưu ý: Bạn cần vào OrderRepository thêm dòng: List<Order> findByUserId(Long userId);
-        return orderRepository.findByUserId(userId)
-                .stream()
+        return orderRepository.findByUserId(userId).stream()
                 .map(orderMapper::toResponse)
                 .toList();
     }
 
-    // Xem chi tiết đơn hàng (Bắt buộc kiểm tra quyền sở hữu)
+    @Transactional(readOnly = true)
     public OrderResponse getOrderDetail(Long orderId, Long userId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getUserId().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền truy cập đơn hàng này!");
-        }
-
         return orderMapper.toResponse(order);
     }
 
-    // Khách hàng tự hủy đơn
     @Transactional
     public OrderResponse cancelOrderByUser(Long orderId, Long userId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        return cancelOrder(order.getId());
+    }
 
-        if (!order.getUserId().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền hủy đơn hàng này!");
+    /**
+     * Trả hàng về kho. Đơn PENDING còn giữ chỗ nên trả từ {@code locked};
+     * đơn PAID đã trừ hẳn nên cộng lại vào {@code available}.
+     */
+    private void restock(Order order) {
+        boolean alreadyConsumed = order.getStatus() == OrderStatus.PAID;
+        for (OrderItem item : order.getItems()) {
+            if (alreadyConsumed) {
+                inventoryService.restock(item.getProduct().getId(), item.getQuantity());
+            } else {
+                inventoryService.releaseInventory(item.getProduct().getId(), item.getQuantity());
+            }
+        }
+    }
+
+    /**
+     * Hoàn lại lượt sử dụng voucher và mở khóa voucher trong ví của người dùng.
+     * Bản cũ bỏ qua bước này nên một đơn bị hủy vẫn tiêu mất một lượt voucher.
+     */
+    private void refundVoucher(Order order) {
+        Voucher voucher = order.getVoucher();
+        if (voucher == null) {
+            return;
         }
 
-        // Tận dụng lại chính hàm cancelOrder gốc của bạn để xử lý logic hoàn kho
-        return this.cancelOrder(orderId);
+        voucherRepository.findByIdForUpdate(voucher.getId()).ifPresent(locked -> {
+            if (locked.getUsedQuantity() > 0) {
+                locked.setUsedQuantity(locked.getUsedQuantity() - 1);
+                voucherRepository.save(locked);
+            }
+        });
+
+        userVoucherRepository.findByUserIdAndVoucherId(order.getUserId(), voucher.getId())
+                .ifPresent(userVoucher -> {
+                    userVoucher.setIsUsed(false);
+                    userVoucherRepository.save(userVoucher);
+                });
+    }
+
+    private Order findOrder(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
     }
 }

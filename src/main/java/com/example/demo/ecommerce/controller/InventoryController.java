@@ -2,7 +2,6 @@ package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,16 +15,19 @@ import com.example.demo.ecommerce.dto.InventoryResponse;
 import com.example.demo.ecommerce.service.InventoryService;
 import com.example.demo.user.dto_request.ApiResponse;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/admin/inventories")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class InventoryController {
 
-    @Autowired
-    private InventoryService inventoryService;
+    private final InventoryService inventoryService;
 
     @PostMapping("/add-stock")
-    public ApiResponse<InventoryResponse> addStock(@RequestBody InventoryRequest request) {
+    public ApiResponse<InventoryResponse> addStock(@Valid @RequestBody InventoryRequest request) {
         return new ApiResponse<>(200, "Nhập kho thành công", inventoryService.addStock(request));
     }
 

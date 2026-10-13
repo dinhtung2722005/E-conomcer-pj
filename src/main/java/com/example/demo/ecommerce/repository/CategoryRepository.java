@@ -7,4 +7,6 @@ import com.example.demo.ecommerce.entity.Category;
 
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
+
+    boolean existsByNameIgnoreCase(String name);
 }

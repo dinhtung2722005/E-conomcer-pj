@@ -38,6 +38,13 @@ public class OrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    /**
+     * Tên sản phẩm tại thời điểm mua — ảnh chụp (snapshot) để hóa đơn cũ
+     * vẫn hiển thị đúng nếu sản phẩm sau này bị đổi tên.
+     */
+    @Column(name = "product_name", length = 255)
+    private String productName;
+
     @Column(nullable = false)
     private Integer quantity;
 

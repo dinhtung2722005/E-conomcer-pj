@@ -2,7 +2,6 @@ package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,12 +10,14 @@ import com.example.demo.ecommerce.dto.CategoryCustomerResponse;
 import com.example.demo.ecommerce.service.CustomerCategoryService;
 import com.example.demo.user.dto_request.ApiResponse;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
-@RequestMapping("/api/categories") 
+@RequestMapping("/api/categories")
+@RequiredArgsConstructor
 public class CustomerCategoryController {
 
-    @Autowired
-    private CustomerCategoryService customerCategoryService;
+    private final CustomerCategoryService customerCategoryService;
 
     @GetMapping
     public ApiResponse<List<CategoryCustomerResponse>> getAllCategories() {

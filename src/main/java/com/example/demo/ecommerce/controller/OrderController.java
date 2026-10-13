@@ -2,7 +2,6 @@ package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,13 +16,16 @@ import com.example.demo.ecommerce.dto.OrderStatusUpdateRequest;
 import com.example.demo.ecommerce.service.OrderService;
 import com.example.demo.user.dto_request.ApiResponse;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/admin/orders")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
+    private final OrderService orderService;
 
     @GetMapping
     public ApiResponse<List<OrderResponse>> getAllOrders() {
@@ -35,17 +37,23 @@ public class OrderController {
         return new ApiResponse<>(200, "Thành công", orderService.getOrderById(id));
     }
 
+    /**
+     * Chuyển trạng thái đơn hàng.
+     *
+     * <p>Chỉ chấp nhận các bước chuyển hợp lệ. Khi sang {@code PAID}, hàng đang giữ chỗ
+     * được trừ hẳn khỏi kho; khi sang {@code CANCELLED}, hàng được hoàn và lượt voucher
+     * được trả lại.
+     */
     @PutMapping("/{id}/status")
-    public ApiResponse<OrderResponse> updateOrderStatus(
-            @PathVariable Long id, 
-            @RequestBody OrderStatusUpdateRequest request) {
-        return new ApiResponse<>(200, "Cập nhật trạng thái thành công", 
+    public ApiResponse<OrderResponse> updateOrderStatus(@PathVariable Long id,
+                                                        @Valid @RequestBody OrderStatusUpdateRequest request) {
+        return new ApiResponse<>(200, "Cập nhật trạng thái thành công",
                 orderService.updateOrderStatus(id, request.getStatus()));
     }
 
     @PostMapping("/{id}/cancel")
     public ApiResponse<OrderResponse> cancelOrder(@PathVariable Long id) {
-        return new ApiResponse<>(200, "Đã hủy đơn và hoàn trả kho thành công", 
+        return new ApiResponse<>(200, "Đã hủy đơn và hoàn trả kho thành công",
                 orderService.cancelOrder(id));
     }
 }

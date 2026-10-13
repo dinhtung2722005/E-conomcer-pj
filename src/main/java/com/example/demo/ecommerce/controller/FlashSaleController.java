@@ -1,31 +1,48 @@
 package com.example.demo.ecommerce.controller;
 
-import com.example.demo.user.dto_request.ApiResponse;
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.demo.ecommerce.dto.FlashSaleRequest;
 import com.example.demo.ecommerce.dto.FlashSaleResponse;
 import com.example.demo.ecommerce.service.FlashSaleService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import com.example.demo.user.dto_request.ApiResponse;
 
-import java.util.List;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/admin/flash-sales")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class FlashSaleController {
 
-    @Autowired
-    private FlashSaleService flashSaleService;
+    private final FlashSaleService flashSaleService;
 
+    /** Trạng thái được suy ra từ khung thời gian, không lấy từ request. */
     @PostMapping
-    public ApiResponse<FlashSaleResponse> createFlashSale(@RequestBody FlashSaleRequest request) {
-        return new ApiResponse<>(200, "Tạo Flash Sale thành công", flashSaleService.createFlashSale(request));
+    public ApiResponse<FlashSaleResponse> createFlashSale(@Valid @RequestBody FlashSaleRequest request) {
+        return new ApiResponse<>(201, "Tạo Flash Sale thành công",
+                flashSaleService.createFlashSale(request));
     }
 
     @GetMapping
     public ApiResponse<List<FlashSaleResponse>> getAllFlashSales() {
         return new ApiResponse<>(200, "Thành công", flashSaleService.getAllFlashSales());
+    }
+
+    @GetMapping("/active")
+    public ApiResponse<List<FlashSaleResponse>> getActiveFlashSales() {
+        return new ApiResponse<>(200, "Thành công", flashSaleService.getActiveFlashSales());
     }
 
     @GetMapping("/{id}")
@@ -34,14 +51,13 @@ public class FlashSaleController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<FlashSaleResponse> updateFlashSale(
-            @PathVariable Long id, 
-            @RequestBody FlashSaleRequest request) {
+    public ApiResponse<FlashSaleResponse> updateFlashSale(@PathVariable Long id,
+                                                          @Valid @RequestBody FlashSaleRequest request) {
         return new ApiResponse<>(200, "Cập nhật thành công", flashSaleService.updateFlashSale(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteFlashSale(@PathVariable Long id) {
+    public ApiResponse<Void> deleteFlashSale(@PathVariable Long id) {
         flashSaleService.deleteFlashSale(id);
         return new ApiResponse<>(200, "Đã xóa chương trình Flash Sale", null);
     }

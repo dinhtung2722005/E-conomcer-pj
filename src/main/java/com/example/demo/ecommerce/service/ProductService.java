@@ -11,67 +11,110 @@ import com.example.demo.ecommerce.dto.ProductRequest;
 import com.example.demo.ecommerce.dto.ProductResponse;
 import com.example.demo.ecommerce.entity.Category;
 import com.example.demo.ecommerce.entity.Product;
+import com.example.demo.ecommerce.entity.ProductStatus;
 import com.example.demo.ecommerce.mapper.ProductMapper;
 import com.example.demo.ecommerce.repository.CategoryRepository;
+import com.example.demo.ecommerce.repository.OrderItemRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.user.exception.AppException;
 import com.example.demo.user.exception.ErrorCode;
+
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class ProductService {
+
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
-    public ProductService(ProductRepository productRepository,CategoryRepository categoryRepository,ProductMapper productMapper ){
-        this.categoryRepository=categoryRepository;
-        this.productRepository = productRepository;
-        this.productMapper=productMapper;
-    }
+
     @Transactional
-    public ProductResponse createProduct (ProductRequest request){
-        List<Category> categoryList = categoryRepository.findAllById(request.getCategoryIds());
-        Set<Category> categories = new HashSet<>(categoryList);
-          Product product = new Product();
-          product.setName(request.getName());
-          product.setDescription(request.getDescription());
-          product.setPrice(request.getPrice());
-          product.setStatus(request.getStatus());
-          product.setCategories(categories);  
-          productRepository.save(product);
-          return productMapper.toProductResponse(product);
+    public ProductResponse createProduct(ProductRequest request) {
+        String name = request.getName().trim();
+        if (productRepository.existsByName(name)) {
+            throw new AppException(ErrorCode.PRODUCT_NAME_EXISTED);
+        }
+
+        Product product = Product.builder()
+                .name(name)
+                .description(request.getDescription())
+                .price(request.getPrice())
+                .status(request.getStatus())
+                .categories(resolveCategories(request.getCategoryIds()))
+                .build();
+
+        return productMapper.toProductResponse(productRepository.save(product));
     }
-    
-   public List<ProductResponse> getAllProducts() {
-        return productRepository.findAll()
-                .stream()
-                .map(productMapper::toProductResponse) 
+
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getAllProducts() {
+        return productRepository.findAll().stream()
+                .map(productMapper::toProductResponse)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public ProductResponse getProductById(Long id) {
+        return productMapper.toProductResponse(findProduct(id));
+    }
+
     @Transactional
-    public ProductResponse updateProduct(Long id, ProductRequest request){
-            Product product = productRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
-            List<Category> categoryList = categoryRepository.findAllById(request.getCategoryIds());
-            Set<Category> categories = new HashSet<>(categoryList);
-            product.setName(request.getName());
+    public ProductResponse updateProduct(Long id, ProductRequest request) {
+        Product product = findProduct(id);
+        String name = request.getName().trim();
+
+        if (productRepository.existsByNameAndIdNot(name, id)) {
+            throw new AppException(ErrorCode.PRODUCT_NAME_EXISTED);
+        }
+
+        product.setName(name);
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
         product.setStatus(request.getStatus());
-        product.setCategories(categories);
+        product.setCategories(resolveCategories(request.getCategoryIds()));
 
-        Product updatedProduct = productRepository.save(product);
-        return productMapper.toProductResponse(updatedProduct);
+        return productMapper.toProductResponse(productRepository.save(product));
     }
+
+    /**
+     * Ngừng kinh doanh sản phẩm.
+     *
+     * <p>Sản phẩm đã phát sinh đơn hàng <b>không</b> bị xóa cứng: xóa sẽ phá vỡ lịch sử
+     * mua hàng và vi phạm khóa ngoại từ {@code order_items}. Thay vào đó chuyển sang
+     * trạng thái {@link ProductStatus#INACTIVE} — khách không mua được nữa nhưng hóa
+     * đơn cũ vẫn nguyên vẹn.
+     */
     @Transactional
     public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
-                productRepository.delete(product);
+        Product product = findProduct(id);
+
+        if (orderItemRepository.existsByProductId(id)) {
+            product.setStatus(ProductStatus.INACTIVE);
+            productRepository.save(product);
+            return;
+        }
+
+        productRepository.delete(product);
     }
-    public ProductResponse getProductById(Long id) {
-        Product product = productRepository.findById(id)
+
+    private Product findProduct(Long id) {
+        return productRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
-        return productMapper.toProductResponse(product);
     }
-    
-    
+
+    /** Danh mục không tồn tại phải báo lỗi, không được âm thầm bỏ qua. */
+    private Set<Category> resolveCategories(Set<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<Category> categories = categoryRepository.findAllById(categoryIds);
+        if (categories.size() != categoryIds.size()) {
+            throw new AppException(ErrorCode.CATEGORY_NOT_FOUND,
+                    "Một hoặc nhiều danh mục không tồn tại");
+        }
+        return new HashSet<>(categories);
+    }
 }

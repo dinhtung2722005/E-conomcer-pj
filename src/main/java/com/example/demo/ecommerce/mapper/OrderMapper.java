@@ -10,11 +10,24 @@ import com.example.demo.ecommerce.entity.OrderItem;
 
 @Mapper(componentModel = "spring")
 public interface OrderMapper {
-    
+
+    @Mapping(source = "voucher.code", target = "voucherCode")
     OrderResponse toResponse(Order order);
 
+    /**
+     * {@code productName} ưu tiên lấy từ ảnh chụp lưu trên đơn ({@code orderItem.productName})
+     * để hóa đơn cũ không đổi theo tên sản phẩm hiện tại. Các đơn tạo trước khi có cột này
+     * sẽ rơi về tên sản phẩm hiện hành.
+     */
     @Mapping(source = "product.id", target = "productId")
-    @Mapping(source = "product.name", target = "productName")
+    @Mapping(target = "productName", expression = "java(resolveProductName(orderItem))")
     @Mapping(source = "priceAtPurchase", target = "price")
     OrderItemResponse toOrderItemResponse(OrderItem orderItem);
+
+    default String resolveProductName(OrderItem orderItem) {
+        if (orderItem.getProductName() != null) {
+            return orderItem.getProductName();
+        }
+        return orderItem.getProduct() != null ? orderItem.getProduct().getName() : null;
+    }
 }

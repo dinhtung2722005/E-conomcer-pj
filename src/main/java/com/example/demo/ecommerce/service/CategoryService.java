@@ -3,58 +3,90 @@ package com.example.demo.ecommerce.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.ecommerce.dto.CategoryRequest;
 import com.example.demo.ecommerce.dto.CategoryResponse;
 import com.example.demo.ecommerce.entity.Category;
+import com.example.demo.ecommerce.entity.Product;
 import com.example.demo.ecommerce.mapper.CategoryMapper;
 import com.example.demo.ecommerce.repository.CategoryRepository;
+import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.user.exception.AppException;
 import com.example.demo.user.exception.ErrorCode;
 
-import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class CategoryService {
+
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
     private final CategoryMapper categoryMapper;
-    public CategoryService(CategoryRepository categoryRepository,CategoryMapper categoryMapper ){
-        this.categoryRepository = categoryRepository;
-        this.categoryMapper = categoryMapper;
+
+    @Transactional
+    public CategoryResponse create(CategoryRequest request) {
+        String name = request.getName().trim();
+        if (categoryRepository.existsByNameIgnoreCase(name)) {
+            throw new AppException(ErrorCode.DATA_CONFLICT, "Danh mục '" + name + "' đã tồn tại");
+        }
+
+        Category category = Category.builder()
+                .name(name)
+                .description(request.getDescription())
+                .build();
+
+        return categoryMapper.toCategoryResponse(categoryRepository.save(category));
     }
-    public CategoryResponse create(CategoryRequest request){
-        Category category = new Category();
-        category.setName(request.getName());
-        category.setDescription(request.getDescription());
-        Category savedCategory = categoryRepository.save(category);
-        return categoryMapper.toCategoryResponse(savedCategory);
-    }
+
+    @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll()
-                .stream()
+        return categoryRepository.findAll().stream()
                 .map(categoryMapper::toCategoryResponse)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(Long id) {
-        Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
-        return categoryMapper.toCategoryResponse(category);
+        return categoryMapper.toCategoryResponse(findCategory(id));
     }
+
     @Transactional
     public CategoryResponse updateCategory(Long id, CategoryRequest request) {
-        Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        Category category = findCategory(id);
+        String name = request.getName().trim();
 
-        category.setName(request.getName());
+        if (!name.equalsIgnoreCase(category.getName()) && categoryRepository.existsByNameIgnoreCase(name)) {
+            throw new AppException(ErrorCode.DATA_CONFLICT, "Danh mục '" + name + "' đã tồn tại");
+        }
+
+        category.setName(name);
         category.setDescription(request.getDescription());
-
-        Category updatedCategory = categoryRepository.save(category);
-        return categoryMapper.toCategoryResponse(updatedCategory);
+        return categoryMapper.toCategoryResponse(categoryRepository.save(category));
     }
+
+    /**
+     * Xóa danh mục.
+     *
+     * <p>Phải gỡ liên kết với sản phẩm trước: bảng trung gian {@code product_categories}
+     * không có cascade nên xóa trực tiếp sẽ vi phạm khóa ngoại và trả về HTTP 500.
+     */
     @Transactional
     public void deleteCategory(Long id) {
-        Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        Category category = findCategory(id);
+
+        List<Product> products = productRepository.findByCategoriesId(id);
+        for (Product product : products) {
+            product.getCategories().removeIf(c -> c.getId().equals(id));
+        }
+        productRepository.saveAll(products);
+
         categoryRepository.delete(category);
     }
-}
 
+    private Category findCategory(Long id) {
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+    }
+}

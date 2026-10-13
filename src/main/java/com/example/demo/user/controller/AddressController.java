@@ -2,8 +2,6 @@ package com.example.demo.user.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,43 +15,41 @@ import com.example.demo.user.dto_request.AddressRequest;
 import com.example.demo.user.dto_request.AddressResponse;
 import com.example.demo.user.dto_request.ApiResponse;
 import com.example.demo.user.service.AddressService;
+import com.example.demo.user.service.CurrentUserService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/addresses")
+@RequiredArgsConstructor
 public class AddressController {
 
-    @Autowired
-    private AddressService addressService;
+    private final AddressService addressService;
+    private final CurrentUserService currentUserService;
 
-    // Lấy danh sách địa chỉ 
     @GetMapping
     public ApiResponse<List<AddressResponse>> getMyAddresses() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return new ApiResponse<>(200, "Thành công", addressService.getUserAddresses(username));
+        return new ApiResponse<>(200, "Thành công",
+                addressService.getUserAddresses(currentUserService.getCurrentUsername()));
     }
 
-    // Thêm địa chỉ mới
     @PostMapping
     public ApiResponse<AddressResponse> addAddress(@Valid @RequestBody AddressRequest request) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        AddressResponse response = addressService.addAddress(username, request);
-        
-        return new ApiResponse<>(200, "Thêm địa chỉ thành công", response);
+        return new ApiResponse<>(200, "Thêm địa chỉ thành công",
+                addressService.addAddress(currentUserService.getCurrentUsername(), request));
     }
 
-    // Xóa địa chỉ
+    @PutMapping("/{id}")
+    public ApiResponse<AddressResponse> updateAddress(@PathVariable Long id,
+                                                      @Valid @RequestBody AddressRequest request) {
+        return new ApiResponse<>(200, "Cập nhật địa chỉ thành công",
+                addressService.updateAddress(currentUserService.getCurrentUsername(), id, request));
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteAddress(@PathVariable Long id) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        addressService.deleteAddress(username, id);
+        addressService.deleteAddress(currentUserService.getCurrentUsername(), id);
         return new ApiResponse<>(200, "Xóa địa chỉ thành công", null);
-    }
-    @PutMapping("/{id}")
-    public ApiResponse<AddressResponse> updateAddress(@PathVariable Long id, @RequestBody AddressRequest request) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        AddressResponse response = addressService.updateAddress(username, id, request);
-        return new ApiResponse<>(200, "Cập nhật địa chỉ thành công", response);
     }
 }
