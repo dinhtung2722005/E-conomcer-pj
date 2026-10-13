@@ -91,10 +91,12 @@ public class OrderService {
     @Transactional
     public OrderResponse cancelOrder(Long id) {
         Order order = findOrder(id);
+        OrderStatus current = order.getStatus();
 
-        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
+        // Chỉ hủy được đơn chưa giao. Đơn đã SHIPPED/COMPLETED/CANCELLED không thể hủy.
+        if (current != OrderStatus.PENDING && current != OrderStatus.PAID) {
             throw new AppException(ErrorCode.ORDER_STATUS_INVALID,
-                    "Không thể hủy đơn hàng ở trạng thái " + order.getStatus());
+                    "Không thể hủy đơn hàng ở trạng thái " + current);
         }
 
         restock(order);
@@ -126,16 +128,21 @@ public class OrderService {
     }
 
     /**
-     * Trả hàng về kho. Đơn PENDING còn giữ chỗ nên trả từ {@code locked};
-     * đơn PAID đã trừ hẳn nên cộng lại vào {@code available}.
+     * Trả hàng về kho khi đơn bị hủy.
+     *
+     * <p>Chỉ đơn {@code PENDING} còn giữ hàng ở {@code lockedQuantity}; đơn đã qua
+     * {@code PAID} (kể cả khi đang {@code SHIPPED}) đã trừ hẳn khỏi kho nên chỉ cộng
+     * lại {@code availableQuantity}. Việc xác định theo "đã từng PAID hay chưa" là
+     * bắt buộc — nếu chỉ so sánh với {@code PAID} thì hủy đơn ở trạng thái
+     * {@code SHIPPED} sẽ gọi sai nhánh và thất bại.
      */
     private void restock(Order order) {
-        boolean alreadyConsumed = order.getStatus() == OrderStatus.PAID;
+        boolean stockStillHeld = order.getStatus() == OrderStatus.PENDING;
         for (OrderItem item : order.getItems()) {
-            if (alreadyConsumed) {
-                inventoryService.restock(item.getProduct().getId(), item.getQuantity());
-            } else {
+            if (stockStillHeld) {
                 inventoryService.releaseInventory(item.getProduct().getId(), item.getQuantity());
+            } else {
+                inventoryService.restock(item.getProduct().getId(), item.getQuantity());
             }
         }
     }

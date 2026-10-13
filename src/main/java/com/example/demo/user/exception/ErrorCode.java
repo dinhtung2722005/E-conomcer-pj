@@ -11,6 +11,7 @@ public enum ErrorCode {
     INVALID_REQUEST(400, "Dữ liệu không hợp lệ"),
     INVALID_KEY(400, "Dữ liệu không hợp lệ"),
     VALIDATION_FAILED(400, "Dữ liệu gửi lên không hợp lệ"),
+    ENDPOINT_NOT_FOUND(404, "Đường dẫn không tồn tại"),
     INTERNAL_SERVER_ERROR(500, "Lỗi hệ thống, vui lòng thử lại sau"),
     UNCAUGHT_EXCEPTION(500, "Lỗi hệ thống, vui lòng thử lại sau"),
     DATA_CONFLICT(409, "Dữ liệu đã tồn tại"),

@@ -2,6 +2,7 @@ package com.example.demo.ecommerce.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.ecommerce.dto.FlashSaleItemRequest;
@@ -29,6 +31,7 @@ public class FlashSaleItemController {
     private final FlashSaleItemService flashSaleItemService;
 
     @PostMapping("/flash-sales/{flashSaleId}/items")
+    @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<FlashSaleItemResponse> addItem(@PathVariable Long flashSaleId,
                                                       @Valid @RequestBody FlashSaleItemRequest request) {
         return new ApiResponse<>(201, "Thêm sản phẩm vào Flash Sale thành công",
