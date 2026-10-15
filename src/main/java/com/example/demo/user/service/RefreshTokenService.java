@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
  * Quản lý refresh token.
  *
  * <p>Mỗi người dùng chỉ có một refresh token tại một thời điểm. Mỗi lần refresh
- * token cũ bị xóa và thay bằng token mới (rotation) — nhờ vậy token bị đánh cắp
+ * giá trị token cũ được thay bằng token mới trong một transaction (rotation) — nhờ vậy token bị đánh cắp
  * chỉ dùng được một lần rồi vô hiệu, và request hợp lệ tiếp theo của nạn nhân
  * sẽ thất bại, giúp phát hiện bất thường.
  */
@@ -34,13 +34,14 @@ public class RefreshTokenService {
 
     @Transactional
     public RefreshToken createRefreshToken(Long userId) {
+        User user = lockUser(userId);
+        if (!user.isActive()) {
+            throw new AppException(ErrorCode.USER_LOCKED);
+        }
         // Phải flush DELETE trước khi INSERT, nếu không Hibernate sẽ chèn bản ghi mới
         // trước và vi phạm ràng buộc duy nhất trên refresh_tokens.user_id.
         refreshTokenRepository.deleteByUser_Id(userId);
         refreshTokenRepository.flush();
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
@@ -50,29 +51,40 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
 
-    /** Kiểm tra hạn và <b>xóa</b> token cũ, trả về người dùng sở hữu. Token chỉ dùng được một lần. */
+    /** Khóa user rồi token, thay giá trị trong cùng transaction: token cũ chỉ dùng được một lần. */
     @Transactional
-    public User consumeRefreshToken(String token) {
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
+    public RefreshToken rotateRefreshToken(String token) {
+        Long userId = refreshTokenRepository.findUserIdByToken(token)
+                .orElseThrow(() -> new AppException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        User user = lockUser(userId);
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenForUpdate(token)
                 .orElseThrow(() -> new AppException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
-        if (refreshToken.getExpiryDate().compareTo(Instant.now()) < 0) {
-            refreshTokenRepository.delete(refreshToken);
+        if (!refreshToken.getExpiryDate().isAfter(Instant.now())) {
             throw new AppException(ErrorCode.TOKEN_INVALID);
         }
-
-        User user = refreshToken.getUser();
-        refreshTokenRepository.delete(refreshToken);
-        return user;
+        if (!user.isActive()) {
+            throw new AppException(ErrorCode.USER_LOCKED);
+        }
+        refreshToken.setUser(user);
+        refreshToken.setToken(jwtUtils.generateRefreshTokenValue());
+        refreshToken.setExpiryDate(Instant.now().plusMillis(jwtUtils.getRefreshExpirationMs()));
+        return refreshTokenRepository.save(refreshToken);
     }
 
     @Transactional
     public void revokeByUserId(Long userId) {
+        lockUser(userId);
         refreshTokenRepository.deleteByUser_Id(userId);
     }
 
     @Transactional(readOnly = true)
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
+    }
+
+    private User lockUser(Long userId) {
+        return userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 }

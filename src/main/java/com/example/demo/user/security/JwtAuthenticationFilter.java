@@ -68,9 +68,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwtId;
         Long userId;
+        long tokenVersion;
         try {
             jwtId = jwtUtils.getJwtIdFromJwtToken(jwt);
             userId = Long.valueOf(jwtUtils.getUserIdFromJwtToken(jwt));
+            tokenVersion = jwtUtils.getTokenVersion(jwt);
         } catch (Exception e) {
             log.debug("Không đọc được claim của token: {}", e.getMessage());
             return;
@@ -89,7 +91,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        UserPrincipal principal = new UserPrincipal(userOptional.get());
+        User user = userOptional.get();
+        if (user.getTokenVersion() != tokenVersion) {
+            return;
+        }
+
+        UserPrincipal principal = new UserPrincipal(user);
         if (!principal.isEnabled()) {
             log.debug("Tài khoản đã bị khóa, bỏ qua xác thực (id={})", userId);
             return;

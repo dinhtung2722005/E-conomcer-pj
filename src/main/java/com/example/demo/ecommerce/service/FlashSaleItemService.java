@@ -22,6 +22,8 @@ import com.example.demo.ecommerce.repository.FlashSaleItemRepository;
 import com.example.demo.ecommerce.repository.FlashSaleRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -64,11 +66,12 @@ public class FlashSaleItemService {
     }
 
     @Transactional(readOnly = true)
-    public List<FlashSaleItemResponse> getItemsByFlashSaleId(Long flashSaleId) {
-        return flashSaleItemRepository.findByFlashSaleId(flashSaleId)
-                .stream()
-                .map(flashSaleItemMapper::toResponse)
-                .toList();
+    public PageResponse<FlashSaleItemResponse> getItemsByFlashSaleId(Long flashSaleId, PageQuery pagination) {
+        if (!flashSaleRepository.existsById(flashSaleId)) {
+            throw new AppException(ErrorCode.FLASH_SALE_NOT_FOUND);
+        }
+        return PageResponse.from(flashSaleItemRepository.findByFlashSaleId(flashSaleId, pagination.toPageable())
+                .map(flashSaleItemMapper::toResponse));
     }
 
     @Transactional
@@ -107,7 +110,7 @@ public class FlashSaleItemService {
     /** Giá sốc hiện hành của một sản phẩm, hoặc {@code null} nếu không có suất nào còn hiệu lực. */
     @Transactional(readOnly = true)
     public BigDecimal getActiveFlashSalePrice(Long productId) {
-        return findActiveItem(productId).map(FlashSaleItem::getPromotionalPrice).orElse(null);
+        return findActiveItem(productId).map(item -> item.getPromotionalPrice()).orElse(null);
     }
 
     /** Giá sốc hiện hành của nhiều sản phẩm — một truy vấn duy nhất. */
@@ -121,7 +124,8 @@ public class FlashSaleItemService {
                 productIds, FlashSaleStatus.ONGOING, LocalDateTime.now());
         for (FlashSaleItem item : items) {
             // Nếu một sản phẩm nằm trong nhiều chương trình, giữ giá thấp nhất.
-            result.merge(item.getProduct().getId(), item.getPromotionalPrice(), BigDecimal::min);
+            result.merge(item.getProduct().getId(), item.getPromotionalPrice(),
+                    (currentPrice, newPrice) -> currentPrice.min(newPrice));
         }
         return result;
     }

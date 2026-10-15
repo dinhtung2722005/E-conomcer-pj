@@ -1,7 +1,6 @@
 package com.example.demo.ecommerce.service;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +13,8 @@ import com.example.demo.ecommerce.mapper.VoucherMapper;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -53,10 +54,9 @@ public class VoucherService {
     }
 
     @Transactional(readOnly = true)
-    public List<VoucherResponse> getAllVouchers() {
-        return voucherRepository.findAll().stream()
-                .map(voucherMapper::toVoucherResponse)
-                .toList();
+    public PageResponse<VoucherResponse> getAllVouchers(PageQuery pagination) {
+        return PageResponse.from(voucherRepository.findAll(pagination.toPageable())
+                .map(voucherMapper::toVoucherResponse));
     }
 
     @Transactional(readOnly = true)

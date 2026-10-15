@@ -90,6 +90,7 @@ public class JwtUtils {
                 .claim("username", user.getUsername())
                 .claim("email", user.getEmail())
                 .claim("scope", user.getRole().name())
+                .claim("tokenVersion", user.getTokenVersion())
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + accessExpirationMs))
                 .signWith(getSigningKey(), SIGNATURE_ALGORITHM)
@@ -122,6 +123,12 @@ public class JwtUtils {
 
     public String getRoleFromJwtToken(String token) {
         return parseClaims(token).get("scope", String.class);
+    }
+
+    /** Token trước khi có tokenVersion được xem là phiên bản 0 để chuyển đổi dữ liệu cũ. */
+    public long getTokenVersion(String token) {
+        Number version = parseClaims(token).get("tokenVersion", Number.class);
+        return version == null ? 0L : version.longValue();
     }
 
     public String getJwtIdFromJwtToken(String token) {

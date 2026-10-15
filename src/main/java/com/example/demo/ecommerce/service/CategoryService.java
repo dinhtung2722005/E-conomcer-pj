@@ -13,6 +13,8 @@ import com.example.demo.ecommerce.mapper.CategoryMapper;
 import com.example.demo.ecommerce.repository.CategoryRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -41,10 +43,9 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll().stream()
-                .map(categoryMapper::toCategoryResponse)
-                .toList();
+    public PageResponse<CategoryResponse> getAllCategories(PageQuery pagination) {
+        return PageResponse.from(categoryRepository.findAll(pagination.toPageable())
+                .map(categoryMapper::toCategoryResponse));
     }
 
     @Transactional(readOnly = true)

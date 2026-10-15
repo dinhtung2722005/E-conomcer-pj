@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
  * Hủy các đơn hàng PENDING quá hạn thanh toán và hoàn hàng về kho.
  *
  * <p>Cố ý <b>không</b> đặt {@code @Transactional} trên method này. Mỗi lời gọi
- * {@link OrderService#cancelOrder} là một transaction riêng, nên một đơn lỗi không
+ * {@link OrderService#cancelExpiredOrder} là một transaction riêng, nên một đơn lỗi không
  * làm rollback cả lô. Bản cũ bọc cả vòng lặp trong một transaction duy nhất: chỉ cần
  * một đơn lỗi lúc commit là toàn bộ lô bị hủy bỏ, trong khi log vẫn báo thành công
  * từng đơn.
@@ -50,9 +50,10 @@ public class OrderCleanupJob {
         int cancelled = 0;
         for (Order order : expiredOrders) {
             try {
-                orderService.cancelOrder(order.getId());
-                cancelled++;
-                log.info("Đã tự động hủy đơn hàng ID {} do quá hạn {} phút", order.getId(), pendingTimeoutMinutes);
+                if (orderService.cancelExpiredOrder(order.getId(), expireTime)) {
+                    cancelled++;
+                    log.info("Đã tự động hủy đơn hàng ID {} do quá hạn {} phút", order.getId(), pendingTimeoutMinutes);
+                }
             } catch (Exception e) {
                 log.error("Lỗi khi hủy đơn hàng ID {}: {}", order.getId(), e.getMessage());
             }

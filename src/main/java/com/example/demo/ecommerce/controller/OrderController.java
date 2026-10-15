@@ -1,9 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
-import java.util.List;
-
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -15,6 +14,8 @@ import com.example.demo.ecommerce.dto.OrderResponse;
 import com.example.demo.ecommerce.dto.OrderStatusUpdateRequest;
 import com.example.demo.ecommerce.service.OrderService;
 import com.example.demo.user.dto_request.ApiResponse;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +29,8 @@ public class OrderController {
     private final OrderService orderService;
 
     @GetMapping
-    public ApiResponse<List<OrderResponse>> getAllOrders() {
-        return new ApiResponse<>(200, "Thành công", orderService.getAllOrders());
+    public ApiResponse<PageResponse<OrderResponse>> getAllOrders(@Valid @ModelAttribute PageQuery pagination) {
+        return new ApiResponse<>(200, "Thành công", orderService.getAllOrders(pagination));
     }
 
     @GetMapping("/{id}")

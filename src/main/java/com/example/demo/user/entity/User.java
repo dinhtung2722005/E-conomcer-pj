@@ -2,6 +2,7 @@ package com.example.demo.user.entity;
 
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.DynamicUpdate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -17,6 +18,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 @Entity
+// Cập nhật hồ sơ từ snapshot cũ không được ghi đè mật khẩu/tokenVersion vừa đổi ở phiên khác.
+@DynamicUpdate
 @Table(name = "users")
 
 @NoArgsConstructor
@@ -57,6 +60,18 @@ public class User extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;
+
+    @JsonIgnore
+    @Column(name = "token_version", nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    private long tokenVersion;
+
+    public long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void invalidateSessions() {
+        tokenVersion++;
+    }
     public Long getId() {
         return id;
     }

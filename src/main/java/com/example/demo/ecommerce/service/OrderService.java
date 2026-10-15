@@ -1,6 +1,7 @@
 package com.example.demo.ecommerce.service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -13,13 +14,14 @@ import com.example.demo.ecommerce.dto.OrderResponse;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderItem;
 import com.example.demo.ecommerce.entity.OrderStatus;
-import com.example.demo.ecommerce.entity.UserVoucher;
 import com.example.demo.ecommerce.entity.Voucher;
 import com.example.demo.ecommerce.mapper.OrderMapper;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.ecommerce.repository.UserVoucherRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -50,10 +52,9 @@ public class OrderService {
     private final UserVoucherRepository userVoucherRepository;
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAll().stream()
-                .map(orderMapper::toResponse)
-                .toList();
+    public PageResponse<OrderResponse> getAllOrders(PageQuery pagination) {
+        return PageResponse.from(orderRepository.findAll(pagination.toPageable())
+                .map(orderMapper::toResponse));
     }
 
     @Transactional(readOnly = true)
@@ -63,7 +64,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse updateOrderStatus(Long id, OrderStatus newStatus) {
-        Order order = findOrder(id);
+        Order order = findOrderForUpdate(id);
         OrderStatus current = order.getStatus();
 
         if (current == newStatus) {
@@ -76,7 +77,7 @@ public class OrderService {
 
         if (newStatus == OrderStatus.PAID) {
             // Hàng đã bán thật: trừ hẳn khỏi số đang giữ chỗ.
-            for (OrderItem item : order.getItems()) {
+            for (OrderItem item : sortedItems(order)) {
                 inventoryService.confirmSale(item.getProduct().getId(), item.getQuantity());
             }
         } else if (newStatus == OrderStatus.CANCELLED) {
@@ -90,8 +91,27 @@ public class OrderService {
 
     @Transactional
     public OrderResponse cancelOrder(Long id) {
-        Order order = findOrder(id);
+        return cancelLockedOrder(findOrderForUpdate(id));
+    }
+
+    /** Trạng thái và thời hạn được kiểm tra lại sau khi khóa, tránh hủy đơn vừa được thanh toán. */
+    @Transactional
+    public boolean cancelExpiredOrder(Long id, LocalDateTime cutoff) {
+        Order order = findOrderForUpdate(id);
+        if (order.getStatus() != OrderStatus.PENDING || !order.getCreatedAt().isBefore(cutoff)) {
+            return false;
+        }
+        cancelLockedOrder(order);
+        return true;
+    }
+
+    private OrderResponse cancelLockedOrder(Order order) {
         OrderStatus current = order.getStatus();
+
+        // Gửi lại request hủy đơn không hoàn kho/voucher thêm lần nữa.
+        if (current == OrderStatus.CANCELLED) {
+            return orderMapper.toResponse(order);
+        }
 
         // Chỉ hủy được đơn chưa giao. Đơn đã SHIPPED/COMPLETED/CANCELLED không thể hủy.
         if (current != OrderStatus.PENDING && current != OrderStatus.PAID) {
@@ -122,9 +142,9 @@ public class OrderService {
 
     @Transactional
     public OrderResponse cancelOrderByUser(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+        Order order = orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        return cancelOrder(order.getId());
+        return cancelLockedOrder(order);
     }
 
     /**
@@ -138,7 +158,7 @@ public class OrderService {
      */
     private void restock(Order order) {
         boolean stockStillHeld = order.getStatus() == OrderStatus.PENDING;
-        for (OrderItem item : order.getItems()) {
+        for (OrderItem item : sortedItems(order)) {
             if (stockStillHeld) {
                 inventoryService.releaseInventory(item.getProduct().getId(), item.getQuantity());
             } else {
@@ -174,5 +194,16 @@ public class OrderService {
     private Order findOrder(Long id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private Order findOrderForUpdate(Long id) {
+        return orderRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private List<OrderItem> sortedItems(Order order) {
+        return order.getItems().stream()
+                .sorted(Comparator.comparing(item -> item.getProduct().getId()))
+                .toList();
     }
 }

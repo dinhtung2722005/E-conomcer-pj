@@ -1,7 +1,5 @@
 package com.example.demo.user.service;
 
-import java.util.List;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +23,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SessionRevocationService sessionRevocationService;
 
     /** Tạo người dùng với vai trò CUSTOMER. Mật khẩu luôn được hash. */
     @Transactional
@@ -47,13 +46,6 @@ public class UserService {
                 .build();
 
         return toProfileResponse(userRepository.save(user));
-    }
-
-    @Transactional(readOnly = true)
-    public List<UserProfileResponse> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(UserService::toProfileResponse)
-                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -107,7 +99,8 @@ public class UserService {
 
     @Transactional
     public void changePassword(String username, ChangePasswordRequest request) {
-        User user = findUserByUsername(username);
+        User user = userRepository.findByUsernameForUpdate(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.OLD_PASSWORD_INCORRECT);
@@ -121,6 +114,7 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        sessionRevocationService.revokeAllSessions(user.getId());
     }
 
     @Transactional
@@ -147,6 +141,7 @@ public class UserService {
                 .email(user.getEmail())
                 .role(user.getRole() != null ? user.getRole().name() : null)
                 .avatar(user.getAvatar())
+                .active(user.isActive())
                 .build();
     }
 }

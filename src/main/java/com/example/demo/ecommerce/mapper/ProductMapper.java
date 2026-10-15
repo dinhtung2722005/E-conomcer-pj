@@ -21,7 +21,7 @@ public interface ProductMapper {
             return null;
         }
         return categories.stream()
-                .map(Category::getName)
+                .map(category -> category.getName())
                 .collect(Collectors.toSet());
     }
 }

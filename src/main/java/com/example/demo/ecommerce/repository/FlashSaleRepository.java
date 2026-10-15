@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +16,7 @@ import com.example.demo.ecommerce.entity.FlashSaleStatus;
 public interface FlashSaleRepository extends JpaRepository<FlashSale, Long> {
 
     List<FlashSale> findByStatus(FlashSaleStatus status);
+    Page<FlashSale> findByStatus(FlashSaleStatus status, Pageable pageable);
 
     Optional<FlashSale> findFirstByStatusAndStartTimeBeforeAndEndTimeAfter(
             FlashSaleStatus status,

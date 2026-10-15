@@ -12,13 +12,10 @@ import com.example.demo.user.dto_request.LoginRequest;
 import com.example.demo.user.dto_request.LoginResponse;
 import com.example.demo.user.dto_request.UserCreationRequest;
 import com.example.demo.user.dto_request.UserProfileResponse;
-import com.example.demo.user.entity.RefreshToken;
-import com.example.demo.user.entity.User;
 import com.example.demo.user.exception.AppException;
 import com.example.demo.user.exception.ErrorCode;
 import com.example.demo.user.security.JwtUtils;
 import com.example.demo.user.service.AuthService;
-import com.example.demo.user.service.RefreshTokenService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -30,7 +27,6 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
-    private final RefreshTokenService refreshTokenService;
     private final JwtUtils jwtUtils;
 
     @PostMapping("/register")
@@ -42,16 +38,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
-        User user = authService.login(request);
-
-        String accessToken = authService.generateAccessToken(user);
-        RefreshToken refreshToken = authService.createRefreshToken(user.getId());
-
-        LoginResponse data = new LoginResponse(AuthService.toProfile(user), accessToken);
+        AuthService.Session session = authService.login(request);
+        LoginResponse data = new LoginResponse(session.user(), session.accessToken());
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, authService.buildAccessCookie(accessToken).toString())
-                .header(HttpHeaders.SET_COOKIE, authService.buildRefreshCookie(refreshToken.getToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, authService.buildAccessCookie(session.accessToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, authService.buildRefreshCookie(session.refreshToken()).toString())
                 .body(new ApiResponse<>(200, "Đăng nhập thành công", data));
     }
 
@@ -69,20 +61,12 @@ public class AuthController {
         }
 
         // Ném AppException(401) nếu token không tồn tại hoặc đã hết hạn.
-        User user = refreshTokenService.consumeRefreshToken(refreshTokenValue);
-
-        if (!user.isActive()) {
-            throw new AppException(ErrorCode.USER_LOCKED);
-        }
-
-        String newAccessToken = authService.generateAccessToken(user);
-        RefreshToken newRefreshToken = authService.createRefreshToken(user.getId());
-
-        LoginResponse data = new LoginResponse(AuthService.toProfile(user), newAccessToken);
+        AuthService.Session session = authService.refresh(refreshTokenValue);
+        LoginResponse data = new LoginResponse(session.user(), session.accessToken());
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, authService.buildAccessCookie(newAccessToken).toString())
-                .header(HttpHeaders.SET_COOKIE, authService.buildRefreshCookie(newRefreshToken.getToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, authService.buildAccessCookie(session.accessToken()).toString())
+                .header(HttpHeaders.SET_COOKIE, authService.buildRefreshCookie(session.refreshToken()).toString())
                 .body(new ApiResponse<>(200, "Refresh token thành công", data));
     }
 

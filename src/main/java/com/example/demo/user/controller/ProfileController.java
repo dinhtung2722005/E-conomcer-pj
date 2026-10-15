@@ -3,6 +3,7 @@ package com.example.demo.user.controller;
 import java.io.IOException;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -30,24 +31,26 @@ import com.example.demo.user.service.UserService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/details")
-@RequiredArgsConstructor
 @Slf4j
 public class ProfileController {
 
     /** Chỉ nhận các định dạng ảnh phổ biến; nội dung file còn được kiểm tra thêm ở {@link #readValidatedImage}. */
     private static final Set<String> ALLOWED_IMAGE_TYPES =
             Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
-
-    private final UserService userService;
-    private final AuthService authService;
-    private final CloudinaryService cloudinaryService;
-    private final CurrentUserService currentUserService;
-    private final JwtUtils jwtUtils;
+    @Autowired
+    private  UserService userService;
+    @Autowired
+    private  AuthService authService;
+    @Autowired
+    private  CloudinaryService cloudinaryService;
+    @Autowired
+    private  CurrentUserService currentUserService;
+    @Autowired
+    private  JwtUtils jwtUtils;
 
     /** Lấy từ cùng một cấu hình với Spring multipart để không bị lệch giới hạn. */
     @Value("${spring.servlet.multipart.max-file-size:5MB}")
@@ -72,9 +75,7 @@ public class ProfileController {
      * <p>Ba việc phải làm, không được bỏ sót việc nào:
      * <ol>
      *   <li>đưa access token hiện tại vào blacklist;</li>
-     *   <li>thu hồi refresh token của người dùng — gọi tường minh chứ không dựa vào
-     *       bước 1, vì {@code logout} sẽ bỏ qua nếu đọc token thất bại (ví dụ token
-     *       vừa hết hạn ngay sau khi filter kiểm tra xong);</li>
+     *   <li>UserService đổi mật khẩu và thu hồi toàn bộ phiên trong cùng transaction;</li>
      *   <li>xóa cookie phiên trên trình duyệt, nếu không client vẫn gửi kèm cookie
      *       đã chết ở mọi request tiếp theo.</li>
      * </ol>
@@ -83,12 +84,10 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request,
                                                             HttpServletRequest httpRequest) {
         String username = currentUserService.getCurrentUsername();
-        Long userId = currentUserService.getCurrentUserId();
 
         userService.changePassword(username, request);
 
         authService.logout(jwtUtils.getJwtFromRequest(httpRequest));
-        authService.revokeAllSessions(userId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, authService.clearAccessCookie().toString())
@@ -105,7 +104,7 @@ public class ProfileController {
             UserProfileResponse updated = userService.updateAvatar(currentUserService.getCurrentUsername(), avatarUrl);
             return new ApiResponse<>(200, "Cập nhật ảnh đại diện thành công", updated);
         } catch (IOException e) {
-            log.error("Upload avatar lên Cloudinary thất bại", e);
+            // log.error("Upload avatar lên Cloudinary thất bại", e);
             throw new AppException(ErrorCode.AVATAR_UPLOAD_FAILED);
         }
     }

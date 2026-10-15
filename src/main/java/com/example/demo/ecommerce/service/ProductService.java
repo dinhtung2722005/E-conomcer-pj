@@ -17,6 +17,8 @@ import com.example.demo.ecommerce.repository.CategoryRepository;
 import com.example.demo.ecommerce.repository.OrderItemRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -49,10 +51,9 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> getAllProducts() {
-        return productRepository.findAll().stream()
-                .map(productMapper::toProductResponse)
-                .toList();
+    public PageResponse<ProductResponse> getAllProducts(PageQuery pagination) {
+        return PageResponse.from(productRepository.findAll(pagination.toPageable())
+                .map(productMapper::toProductResponse));
     }
 
     @Transactional(readOnly = true)

@@ -3,6 +3,7 @@ package com.example.demo.ecommerce.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,7 +71,9 @@ public class CheckoutService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        for (CartItem cartItem : cart.getItems()) {
+        // Mọi giỏ hàng khóa sản phẩm theo cùng thứ tự để tránh A->B / B->A deadlock.
+        for (CartItem cartItem : cart.getItems().stream()
+                .sorted(Comparator.comparing(item -> item.getProduct().getId())).toList()) {
             Product product = cartItem.getProduct();
 
             if (product.getStatus() != ProductStatus.ACTIVE) {

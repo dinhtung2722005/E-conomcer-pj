@@ -1,7 +1,5 @@
 package com.example.demo.user.controller;
 
-import java.util.List;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping({"/api/admin/users", "/api/users"})
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class UserController {
@@ -43,11 +41,6 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UserProfileResponse> createUser(@Valid @RequestBody UserCreationRequest request) {
         return new ApiResponse<>(201, "Tạo tài khoản thành công", userService.createUser(request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<UserProfileResponse>> getAllUsers() {
-        return new ApiResponse<>(200, "Thành công", userService.getAllUsers());
     }
 
     @GetMapping("/{id}")

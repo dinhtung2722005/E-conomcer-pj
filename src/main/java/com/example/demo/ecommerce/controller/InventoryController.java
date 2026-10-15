@@ -1,9 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
-import java.util.List;
-
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,6 +13,8 @@ import com.example.demo.ecommerce.dto.InventoryRequest;
 import com.example.demo.ecommerce.dto.InventoryResponse;
 import com.example.demo.ecommerce.service.InventoryService;
 import com.example.demo.user.dto_request.ApiResponse;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +33,8 @@ public class InventoryController {
     }
 
     @GetMapping
-    public ApiResponse<List<InventoryResponse>> getAllInventories() {
-        return new ApiResponse<>(200, "Thành công", inventoryService.getAllInventories());
+    public ApiResponse<PageResponse<InventoryResponse>> getAllInventories(@Valid @ModelAttribute PageQuery pagination) {
+        return new ApiResponse<>(200, "Thành công", inventoryService.getAllInventories(pagination));
     }
 
     @GetMapping("/product/{productId}")

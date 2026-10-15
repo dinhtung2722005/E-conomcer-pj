@@ -1,7 +1,11 @@
 package com.example.demo.ecommerce.mapper;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.ObjectFactory;
 
 import com.example.demo.ecommerce.dto.OrderItemResponse;
 import com.example.demo.ecommerce.dto.OrderResponse;
@@ -23,6 +27,11 @@ public interface OrderMapper {
     @Mapping(target = "productName", expression = "java(resolveProductName(orderItem))")
     @Mapping(source = "priceAtPurchase", target = "price")
     OrderItemResponse toOrderItemResponse(OrderItem orderItem);
+
+    @ObjectFactory
+    default List<OrderItemResponse> createOrderItemResponses(List<OrderItem> items) {
+        return new ArrayList<>(items.size());
+    }
 
     default String resolveProductName(OrderItem orderItem) {
         if (orderItem.getProductName() != null) {

@@ -1,11 +1,11 @@
 package com.example.demo.ecommerce.controller;
 
-import java.util.List;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -18,6 +18,8 @@ import com.example.demo.ecommerce.dto.ProductRequest;
 import com.example.demo.ecommerce.dto.ProductResponse;
 import com.example.demo.ecommerce.service.ProductService;
 import com.example.demo.user.dto_request.ApiResponse;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +33,8 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class ProductController {
-
-    private final ProductService productService;
+    @Autowired 
+    private ProductService productService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -41,8 +43,8 @@ public class ProductController {
     }
 
     @GetMapping
-    public ApiResponse<List<ProductResponse>> getAllProducts() {
-        return new ApiResponse<>(200, "Thành công", productService.getAllProducts());
+    public ApiResponse<PageResponse<ProductResponse>> getAllProducts(@Valid @ModelAttribute PageQuery pagination) {
+        return new ApiResponse<>(200, "Thành công", productService.getAllProducts(pagination));
     }
 
     @GetMapping("/{id}")

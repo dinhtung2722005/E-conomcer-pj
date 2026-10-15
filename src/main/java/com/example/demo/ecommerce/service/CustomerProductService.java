@@ -82,7 +82,7 @@ public class CustomerProductService {
             return List.of();
         }
 
-        List<Long> productIds = products.stream().map(Product::getId).toList();
+        List<Long> productIds = products.stream().map(product -> product.getId()).toList();
 
         Map<Long, Integer> availableQuantities = inventoryService.getAvailableQuantities(productIds);
         Map<Long, BigDecimal> flashSalePrices = flashSaleItemService.getActiveFlashSalePrices(productIds);

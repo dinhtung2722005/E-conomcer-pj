@@ -1,7 +1,6 @@
 package com.example.demo.ecommerce.service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +12,8 @@ import com.example.demo.ecommerce.entity.FlashSaleStatus;
 import com.example.demo.ecommerce.mapper.FlashSaleMapper;
 import com.example.demo.ecommerce.repository.FlashSaleRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -39,10 +40,9 @@ public class FlashSaleService {
     }
 
     @Transactional(readOnly = true)
-    public List<FlashSaleResponse> getAllFlashSales() {
-        return flashSaleRepository.findAll().stream()
-                .map(flashSaleMapper::toFlashSaleResponse)
-                .toList();
+    public PageResponse<FlashSaleResponse> getAllFlashSales(PageQuery pagination) {
+        return PageResponse.from(flashSaleRepository.findAll(pagination.toPageable())
+                .map(flashSaleMapper::toFlashSaleResponse));
     }
 
     @Transactional(readOnly = true)
@@ -57,10 +57,9 @@ public class FlashSaleService {
      * {@link FlashSaleStatus} nên luôn trả về rỗng.
      */
     @Transactional(readOnly = true)
-    public List<FlashSaleResponse> getActiveFlashSales() {
-        return flashSaleRepository.findByStatus(FlashSaleStatus.ONGOING).stream()
-                .map(flashSaleMapper::toFlashSaleResponse)
-                .toList();
+    public PageResponse<FlashSaleResponse> getActiveFlashSales(PageQuery pagination) {
+        return PageResponse.from(flashSaleRepository.findByStatus(FlashSaleStatus.ONGOING, pagination.toPageable())
+                .map(flashSaleMapper::toFlashSaleResponse));
     }
 
     @Transactional

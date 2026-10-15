@@ -1,5 +1,6 @@
 package com.example.demo.user.dto_request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,4 +16,6 @@ public class UserProfileResponse {
     private String email;
     private String role;
     private String avatar;
+    @JsonProperty("isActive")
+    private boolean active;
 }

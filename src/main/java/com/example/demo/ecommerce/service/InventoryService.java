@@ -2,7 +2,6 @@ package com.example.demo.ecommerce.service;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
@@ -16,6 +15,8 @@ import com.example.demo.ecommerce.mapper.InventoryMapper;
 import com.example.demo.ecommerce.repository.InventoryRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.user.exception.AppException;
+import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -63,10 +64,9 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<InventoryResponse> getAllInventories() {
-        return inventoryRepository.findAll().stream()
-                .map(inventoryMapper::toResponse)
-                .toList();
+    public PageResponse<InventoryResponse> getAllInventories(PageQuery pagination) {
+        return PageResponse.from(inventoryRepository.findAll(pagination.toPageable())
+                .map(inventoryMapper::toResponse));
     }
 
     @Transactional(readOnly = true)

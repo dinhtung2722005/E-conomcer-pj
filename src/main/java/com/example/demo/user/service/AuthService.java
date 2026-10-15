@@ -36,6 +36,10 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final InvalidatedTokenRepository invalidatedTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SessionRevocationService sessionRevocationService;
+
+    /** Kết quả nội bộ, chỉ accessToken và hồ sơ được đưa vào JSON; refreshToken đi qua cookie. */
+    public record Session(UserProfileResponse user, String accessToken, String refreshToken) {}
 
     @Transactional
     public UserProfileResponse register(UserCreationRequest request) {
@@ -67,8 +71,8 @@ public class AuthService {
      * cho phép kẻ tấn công dò tên tài khoản tồn tại (user enumeration).
      */
     @Transactional
-    public User login(LoginRequest request) {
-        User user = userRepository.findByUsername(request.getUsername().trim())
+    public Session login(LoginRequest request) {
+        User user = userRepository.findByUsernameForUpdate(request.getUsername().trim())
                 .orElseThrow(() -> new AppException(ErrorCode.AUTH_INVALID));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -77,11 +81,18 @@ public class AuthService {
         if (!user.isActive()) {
             throw new AppException(ErrorCode.USER_LOCKED);
         }
-        return user;
+        return newSession(user, refreshTokenService.createRefreshToken(user.getId()));
     }
 
-    public String generateAccessToken(User user) {
-        return jwtUtils.generateToken(user);
+    /** Rotation và ký access token nằm trong cùng transaction, lỗi ký sẽ hoàn lại token cũ. */
+    @Transactional
+    public Session refresh(String token) {
+        RefreshToken rotated = refreshTokenService.rotateRefreshToken(token);
+        return newSession(rotated.getUser(), rotated);
+    }
+
+    private Session newSession(User user, RefreshToken refreshToken) {
+        return new Session(toProfile(user), jwtUtils.generateToken(user), refreshToken.getToken());
     }
 
     public ResponseCookie buildAccessCookie(String token) {
@@ -136,24 +147,22 @@ public class AuthService {
         Date expiryTime = jwtUtils.getExpirationDateFromJwtToken(token);
         String userIdStr = jwtUtils.getUserIdFromJwtToken(token);
 
+        User user = userRepository.findByIdForUpdate(Long.parseLong(userIdStr)).orElse(null);
+
         if (jwtId != null && !invalidatedTokenRepository.existsById(jwtId)) {
             invalidatedTokenRepository.save(new InvalidatedToken(jwtId, expiryTime));
         }
 
-        if (userIdStr != null) {
-            refreshTokenService.revokeByUserId(Long.parseLong(userIdStr));
+        // Logout bằng token trước lúc đổi mật khẩu không được thu hồi phiên mới hơn.
+        if (user != null && user.getTokenVersion() == jwtUtils.getTokenVersion(token)) {
+            refreshTokenService.revokeByUserId(user.getId());
         }
     }
 
     /** Thu hồi toàn bộ phiên của một người dùng (dùng khi đổi mật khẩu / khóa tài khoản). */
     @Transactional
     public void revokeAllSessions(Long userId) {
-        refreshTokenService.revokeByUserId(userId);
-    }
-
-    @Transactional
-    public RefreshToken createRefreshToken(Long userId) {
-        return refreshTokenService.createRefreshToken(userId);
+        sessionRevocationService.revokeAllSessions(userId);
     }
 
     public static UserProfileResponse toProfile(User user) {
@@ -163,6 +172,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole() != null ? user.getRole().name() : null)
                 .avatar(user.getAvatar())
+                .active(user.isActive())
                 .build();
     }
 }
