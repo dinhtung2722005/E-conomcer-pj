@@ -13,6 +13,12 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("isAuthenticated()") @RequiredArgsConstructor
 public class WalletPaymentController {
     private final WalletPaymentService payments;
+    private final com.example.demo.ecommerce.service.OrderService orders;
+
+    @PostMapping("/{id}/confirm-receipt")
+    public ApiResponse<com.example.demo.ecommerce.dto.OrderResponse> confirmReceipt(@PathVariable Long id) {
+        return new ApiResponse<>(200, "Đã xác nhận nhận hàng", orders.confirmReceipt(id));
+    }
     @PostMapping("/{id}/pay")
     public ApiResponse<PaymentResponse> pay(@PathVariable Long id, @Valid @RequestBody PayOrderRequest request,
             @RequestHeader("Idempotency-Key") String key) {

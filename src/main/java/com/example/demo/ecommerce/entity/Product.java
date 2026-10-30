@@ -20,6 +20,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,14 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Product {
+    @Column(name = "seller_id")
+    private Long sellerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seller_id", insertable = false, updatable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Setter(lombok.AccessLevel.NONE)
+    private com.example.demo.user.entity.User seller;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

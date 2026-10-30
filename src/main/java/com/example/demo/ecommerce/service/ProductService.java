@@ -31,6 +31,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
+    private final com.example.demo.user.repository.UserRepository users;
 
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
@@ -41,6 +42,7 @@ public class ProductService {
 
         Product product = Product.builder()
                 .name(name)
+                .sellerId(validateSeller(request.getSellerId()))
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .status(request.getStatus())
@@ -71,6 +73,7 @@ public class ProductService {
         }
 
         product.setName(name);
+        if (request.getSellerId() != null) product.setSellerId(validateSeller(request.getSellerId()));
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
         product.setStatus(request.getStatus());
@@ -98,6 +101,14 @@ public class ProductService {
         }
 
         productRepository.delete(product);
+    }
+
+    private Long validateSeller(Long id) {
+        if (id == null) return null;
+        return users.findById(id).filter(user -> user.isActive()
+                && user.getRole() == com.example.demo.user.entity.UserRole.SELLER)
+                .map(com.example.demo.user.entity.User::getId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Người bán phải là tài khoản SELLER đang hoạt động"));
     }
 
     private Product findProduct(Long id) {

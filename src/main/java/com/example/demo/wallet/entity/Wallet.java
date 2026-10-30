@@ -45,6 +45,11 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Wallet {
+    /** Opening balances are journaled once under this wallet's write lock before the first ledger movement. */
+    @Column(name = "ledger_opened", nullable = false)
+    @ColumnDefault("0")
+    @Builder.Default
+    private boolean ledgerOpened = false;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

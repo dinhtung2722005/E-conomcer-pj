@@ -21,6 +21,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AdminWalletController {
     private final WalletService walletService;
+    private final com.example.demo.wallet.service.WalletReconciliationService reconciliation;
+
+    @org.springframework.web.bind.annotation.GetMapping("/{id}/reconciliation")
+    public ApiResponse<com.example.demo.wallet.dto.WalletReconciliationResponse> reconcile(@PathVariable Long id) {
+        return new ApiResponse<>(200, "Thành công", reconciliation.inspectAsAdmin(id));
+    }
 
     @PostMapping("/{id}/freeze")
     public ApiResponse<WalletResponse> freezeWallet(@PathVariable Long id, @Valid @RequestBody WalletFreezeRequest request) {

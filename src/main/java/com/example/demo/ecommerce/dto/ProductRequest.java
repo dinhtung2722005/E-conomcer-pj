@@ -16,6 +16,8 @@ import lombok.Setter;
 @Setter
 @Getter
 public class ProductRequest {
+    @jakarta.validation.constraints.Positive
+    private Long sellerId;
 
     @NotBlank(message = "Tên sản phẩm không được để trống")
     @Size(max = 255, message = "Tên sản phẩm tối đa 255 ký tự")

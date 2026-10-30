@@ -52,6 +52,34 @@ public class OrderService {
     private final VoucherRepository voucherRepository;
     private final UserVoucherRepository userVoucherRepository;
     private final WalletOrderFundsService walletFunds;
+    private final com.example.demo.user.service.CurrentUserService currentUser;
+
+    @Transactional
+    public OrderResponse confirmReceipt(Long id) {
+        var user = currentUser.getCurrentUser();
+        if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
+        Order order = orderRepository.findByIdAndUserIdForUpdate(id, user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        if (order.getStatus() == OrderStatus.COMPLETED) return orderMapper.toResponse(order);
+        if (order.getStatus() != OrderStatus.SHIPPED) throw new AppException(ErrorCode.ORDER_STATUS_INVALID);
+        order.setStatus(OrderStatus.COMPLETED);
+        order.setCompletedAt(LocalDateTime.now());
+        order.setSettlementAvailableAt(order.getCompletedAt().plusSeconds(order.getReturnWindowSeconds()));
+        return orderMapper.toResponse(orderRepository.save(order));
+    }
+
+    /** Internal only: return approval already holds the order lock and verifies the review case. */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void refundReturnedOrder(Order order) {
+        if (order.getStatus() != OrderStatus.COMPLETED || order.getSettledAt() != null) {
+            throw new AppException(ErrorCode.ORDER_STATUS_INVALID);
+        }
+        walletFunds.refundReturn(order);
+        restock(order);
+        refundVoucher(order);
+        order.setStatus(OrderStatus.REFUNDED);
+        orderRepository.saveAndFlush(order);
+    }
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getAllOrders(PageQuery pagination) {
@@ -84,6 +112,10 @@ public class OrderService {
         }
 
         order.setStatus(newStatus);
+        if (newStatus == OrderStatus.COMPLETED) {
+            order.setCompletedAt(LocalDateTime.now());
+            order.setSettlementAvailableAt(order.getCompletedAt().plusSeconds(order.getReturnWindowSeconds()));
+        }
         return orderMapper.toResponse(orderRepository.save(order));
     }
 

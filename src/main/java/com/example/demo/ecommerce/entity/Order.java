@@ -39,6 +39,18 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Order {
+    @Column(nullable = false, precision = 7, scale = 4, updatable = false)
+    @org.hibernate.annotations.ColumnDefault("0") @Builder.Default
+    private BigDecimal feePercent = BigDecimal.ZERO;
+    @Column(nullable = false, precision = 7, scale = 4, updatable = false)
+    @org.hibernate.annotations.ColumnDefault("0") @Builder.Default
+    private BigDecimal cashbackPercent = BigDecimal.ZERO;
+    @Column(nullable = false, updatable = false)
+    @org.hibernate.annotations.ColumnDefault("604800") @Builder.Default
+    private Long returnWindowSeconds = 604800L;
+    private LocalDateTime completedAt;
+    private LocalDateTime settlementAvailableAt;
+    private LocalDateTime settledAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

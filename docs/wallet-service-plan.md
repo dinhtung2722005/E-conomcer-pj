@@ -1,10 +1,12 @@
 # Kế hoạch service và DTO ví nội bộ
 
-Trạng thái: đã triển khai `WalletService`, các DTO request/query và response
-trong mục 3–4, mapper đọc ví/lịch sử/khoản giữ/trạng thái PIN, cùng audit khóa/mở
-khóa. Đã có API quản lý ví gọi WalletService: khởi tạo/đọc, lịch sử/khoản giữ và
-khóa/mở khóa (xem [API ví](wallet-api.md)). Các service/API nạp/rút/thanh toán/PIN,
-hook đăng ký và command nội bộ vẫn là kế hoạch.
+Trạng thái: đã triển khai quản lý ví, PIN, hook đăng ký, nạp/rút qua outbox,
+thanh toán/hủy, hồ sơ hoàn toàn bộ đơn, quyết toán theo snapshot người bán,
+cashback cấu hình được và sổ đối ứng/đối soát. Chưa có adapter ngân hàng thật,
+webhook theo giao thức đối tác, sinh trắc học hoặc khôi phục PIN.
+Chính sách đã chọn: phí 0%, cashback tắt, cửa sổ hoàn hàng 7 ngày.
+Xem [API ví](wallet-api.md), [kết nối ngân hàng](wallet-bank-integration.md)
+và [quyết toán/vận hành](wallet-operations.md) để biết hành vi hiện tại.
 Dựa trên luồng ngân hàng → ví → thanh toán đơn → quyết toán/hoàn.
 
 ## 1. Phạm vi và lựa chọn ban đầu
@@ -192,24 +194,25 @@ Thu hồi thưởng đã tiêu cần chính sách thu hồi/case riêng; không 
   voucher; rà soát cả checkout lẫn admin/job. Khởi tạo ví/PIN khóa user/cha riêng
   trước khi bước vào luồng tài chính; không thêm khóa user sau khi đã khóa ví.
 
-## 6. Dữ liệu còn thiếu trước khi làm đầy đủ
+## 6. Checklist dữ liệu và tình trạng triển khai
 
 1. **Đích ngân hàng đã xác minh:** entity/liên kết lưu token đối tác, chủ sở hữu,
-   trạng thái xác minh, thông tin che để hiển thị. Chưa có trong model hiện tại.
-2. **Idempotency fingerprint:** bổ sung nơi lưu hash của payload nghiệp vụ đã
+   thông tin che để hiển thị. Đã có LinkedBankAccount, chỉ tạo từ bằng chứng của adapter.
+2. **Idempotency fingerprint:** WalletOperation lưu hash của payload nghiệp vụ đã
    chuẩn hóa, liên kết các transaction CASH/BONUS và kết quả để retry trả lại
    đúng thao tác. Không dùng mỗi key để chấp nhận request đã thay đổi.
 3. **Outbox và dấu vết đối tác:** lưu merchant reference trước lần gửi đầu,
    payload đã loại secrets, retry metadata và dấu vết event/callback phù hợp
    giao thức. Provider ID có thể chưa biết nếu lần gửi đầu bị timeout.
-4. **Người bán/phân bổ quyết toán:** Product/OrderItem hiện chưa có sellerId;
-   cần lưu người bán tại thời điểm mua, phân bổ tiền sau giảm giá, phí sàn và
-   nguồn tài trợ BONUS. Chưa thể suy ra người nhận tiền chỉ từ tổng đơn hiện có.
+4. **Người bán/phân bổ quyết toán:** Product có sellerId; OrderItem lưu snapshot
+   người bán, tiền sau giảm giá và phí sàn. Dữ liệu cũ thiếu snapshot cần đối soát,
+   không suy đoán người nhận tiền từ tổng đơn hay chủ sản phẩm hiện tại.
 5. **Bút toán và audit:** wallet_transactions là vòng đời nghiệp vụ, chưa phải
-   sổ kế toán kép. Thêm mô hình bút toán đối ứng/nguồn phí, audit khóa/mở khóa và
-   đối soát trước khi vận hành dòng tiền đầy đủ; không thêm API sửa balance trực tiếp.
-6. **Hoàn hàng/cashback:** hiện OrderStatus chưa có luồng return/refund và voucher
-   chưa có cashback rule. Bổ sung case duyệt hoàn/rule thưởng trước các luồng này.
+   sổ kế toán kép. Đã thêm WalletJournal/WalletJournalEntry, audit khóa/mở khóa và
+   đối soát số dư/khoản giữ. Không có API sửa balance trực tiếp.
+6. **Hoàn hàng/cashback:** đã có hồ sơ hoàn toàn bộ đơn trong thời hạn, admin duyệt
+   trước quyết toán. Cashback theo tỷ lệ snapshot (mặc định 0) sau thời hạn hoàn.
+   Hoàn một phần/sau quyết toán và thu hồi thưởng đã tiêu vẫn cần nguồn bù/case riêng.
 
 Reconciliation cần phân lô ổn định: thêm truy vấn keyset/cursor hoặc snapshot ID
 trước khi xử lý; không tăng offset trên tập PENDING đang bị chính worker loại bớt.
@@ -217,7 +220,7 @@ trước khi xử lý; không tăng offset trên tập PENDING đang bị chính
 ## 7. API dự kiến
 
 Các đường khởi tạo/đọc ví, lịch sử, khoản giữ và khóa/mở khóa đã triển khai.
-Các đường PIN, nạp/rút, thanh toán và callback trong bảng dưới vẫn là kế hoạch.
+Các đường PIN, nạp/rút và thanh toán đã có; callback vẫn chờ giao thức đối tác.
 
 | API | Mục đích |
 |---|---|
@@ -237,7 +240,7 @@ Các đường PIN, nạp/rút, thanh toán và callback trong bảng dưới v�
 
 Khách không có API tự đánh dấu nạp/rút thành công, tự refund/capture/cashback
 hay mở khóa ví bằng mỗi một cờ. Việc xác minh tài khoản ngân hàng có API riêng
-sau khi chọn được đối tác.
+sử dụng bằng chứng từ adapter sau khi chọn được đối tác.
 
 ## 8. Thứ tự triển khai và điều kiện nghiệm thu
 

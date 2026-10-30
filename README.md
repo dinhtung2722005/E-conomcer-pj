@@ -44,7 +44,7 @@ com.example.demo
 │   └── job/        TokenCleanupJob (dọn blacklist)
 ├── ecommerce/  danh mục, sản phẩm, kho, giỏ hàng, đơn hàng, voucher, flash sale
 │   └── job/        OrderCleanupJob, FlashSaleStatusJob
-└── wallet/     entity, repository, DTO/mapper, WalletService và controller quản lý ví
+└── wallet/     PIN, nạp/rút, thanh toán/hoàn, quyết toán, sổ đối ứng và đối soát
 ```
 
 ## Quy ước API
@@ -196,10 +196,12 @@ Tất cả cần đăng nhập, nhóm admin yêu cầu ROLE_ADMIN. Xem [API ví]
 
 Các phần sau đã có entity/DTO nhưng **chưa có nghiệp vụ** — cần làm tiếp nếu muốn dùng:
 
-- `wallet/` — đã có entity/repository, DTO/mapper và `WalletService` để khởi tạo, đọc ví/lịch sử/khoản giữ,
-  khóa/mở khóa có audit và controller cho các chức năng này. Chưa có service/API nạp/rút/thanh toán/PIN hoặc hook đăng ký tự tạo ví.
+- `wallet/` — tự tạo ví khi đăng ký, quản lý/PIN, nạp/rút có idempotency và outbox,
+  thanh toán/hủy nguyên tử với kho/voucher, duyệt hoàn, quyết toán người bán,
+  cashback cấu hình được và journal/đối soát. Chưa cài adapter ngân hàng tiền thật.
   DTO đầu vào/response cho nạp/rút, thanh toán, hoàn tiền và PIN đã được chuẩn bị theo kế hoạch.
-  Xem [mô hình ví và yêu cầu migration](docs/wallet-model.md) trước khi nối vào checkout.
+  Xem [mô hình ví và yêu cầu migration](docs/wallet-model.md) trước khi triển khai
+  database có dữ liệu, và [chính sách quyết toán/vận hành](docs/wallet-operations.md).
 - Khôi phục mật khẩu qua OTP — `OtpCode`, `OtpCodeRepository` và `EmailService` (file đang comment toàn bộ) chưa được nối vào luồng nào.
 - Xác minh email khi đăng ký.
 - Thanh toán trực tuyến: đơn chỉ chuyển `PENDING → PAID` thủ công qua API admin, chưa có cổng thanh toán.

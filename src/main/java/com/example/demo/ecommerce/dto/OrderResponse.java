@@ -35,4 +35,7 @@ public class OrderResponse {
     private List<OrderItemResponse> items;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime completedAt;
+    private LocalDateTime settlementAvailableAt;
+    private LocalDateTime settledAt;
 }

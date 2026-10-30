@@ -31,6 +31,9 @@ public class IsolatedMySqlDatabase implements ApplicationContextInitializer<Conf
         TestPropertyValues.of(
                 "spring.datasource.url=" + serverUrl + database + options,
                 "spring.jpa.hibernate.ddl-auto=create-only",
+                "wallet.settlement.worker-enabled=false",
+                "wallet.bank.worker-enabled=false",
+                "wallet.reconciliation.worker-enabled=false",
                 "app.order.cleanup-initial-delay-ms=3600000",
                 "app.token.cleanup-initial-delay-ms=3600000",
                 "app.flash-sale.status-sync-interval-ms=3600000")

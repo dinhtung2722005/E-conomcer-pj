@@ -35,6 +35,7 @@ public class WalletPaymentService {
     private final InventoryService inventory;
     private final CurrentUserService currentUser;
     private final PlatformTransactionManager transactionManager;
+    private final WalletLedgerService ledger;
 
     public PaymentResponse payOrder(@NotNull @Positive Long orderId, @NotNull @Valid PayOrderRequest request, String key) {
         var user = currentUser.getCurrentUser();
@@ -71,6 +72,7 @@ public class WalletPaymentService {
 
     private void reserve(Order order, Wallet wallet, WalletOperation operation, WalletBalanceType source, BigDecimal amount) {
         if (amount.signum() == 0) return;
+        ledger.open(wallet);
         var hold = holds.saveAndFlush(WalletHold.builder().wallet(wallet).order(order).referenceId(order.getId().toString())
                 .type(WalletHoldType.ORDER_PAYMENT).balanceType(source).amount(amount).build());
         if (source == WalletBalanceType.CASH) {
@@ -80,10 +82,12 @@ public class WalletPaymentService {
             wallet.setBonusBalance(wallet.getBonusBalance().subtract(amount));
             wallet.setPendingBonusBalance(wallet.getPendingBonusBalance().add(amount));
         }
-        transactions.saveAndFlush(WalletTransaction.builder().wallet(wallet).operation(operation)
+        var transaction = transactions.saveAndFlush(WalletTransaction.builder().wallet(wallet).operation(operation)
                 .referenceId(order.getId().toString()).idempotencyKey("op:" + operation.getId() + ":" + source)
                 .type(TransactionType.PAYMENT).balanceType(source).amount(amount).hold(hold)
                 .status(TransactionStatus.SUCCESS).completedAt(java.time.LocalDateTime.now()).build());
+        ledger.move("hold:" + transaction.getId(), wallet.getCurrency(), ledger.account(wallet, source, false),
+                ledger.account(wallet, source, true), amount);
     }
 
     private PaymentResponse response(Long orderId, String currency, WalletOperation operation) {

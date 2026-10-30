@@ -11,6 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ProductResponse{
+        private Long sellerId;
         private Long id;
         private String name;
         private String description;

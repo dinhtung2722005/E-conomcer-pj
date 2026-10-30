@@ -39,6 +39,11 @@ tạo ví là idempotent theo user, trả 200 cả khi mới tạo và khi ví �
 | POST | `/api/wallet/withdrawals` | WithdrawRequest + Idempotency-Key | WithdrawResponse |
 | GET | `/api/wallet/withdrawals/{id}` | ID giao dịch của tôi | WithdrawResponse |
 | POST | `/api/orders/{id}/pay` | PayOrderRequest + Idempotency-Key | PaymentResponse |
+| POST | `/api/orders/{id}/confirm-receipt` | Không cần body | OrderResponse |
+| POST | `/api/orders/{id}/refund` | RefundCaseRequest | RefundCaseResponse |
+| GET | `/api/orders/{id}/refund` | ID đơn của tôi | RefundCaseResponse |
+| POST | `/api/admin/orders/{id}/refund/decision` | RefundDecisionRequest | RefundCaseResponse |
+| GET | `/api/admin/wallets/{id}/reconciliation` | ID ví | WalletReconciliationResponse |
 | GET | `/api/wallet/transactions` | WalletHistoryQuery qua query string | PageResponse<WalletTransactionResponse> |
 | GET | `/api/wallet/transactions/{id}` | ID giao dịch dương | WalletTransactionResponse |
 | GET | `/api/wallet/holds` | WalletHoldQuery qua query string | PageResponse<WalletHoldResponse> |
@@ -66,6 +71,10 @@ toán; kho được xác nhận và đơn chuyển PAID trong cùng transaction.
 còn được chuyển PENDING sang PAID trực tiếp. Hủy từ khách/admin/job dùng chung
 luồng hoàn tiền cùng transaction kho/voucher, trả đúng nguồn CASH/BONUS. Gửi lại
 cùng key trả kết quả thanh toán gốc; key mới không thể thanh toán lại đơn đã trả tiền.
+
+Nhận hàng, cửa sổ hoàn 7 ngày, duyệt hoàn, quyết toán và cấu hình cashback/phí
+được mô tả tại [vận hành ví](wallet-operations.md). Hiện mặc định phí 0%, cashback
+tắt. Nạp/rút yêu cầu adapter ngân hàng thật; xem [hợp đồng adapter](wallet-bank-integration.md).
 
 `GET /api/wallet/transactions` nhận:
 

@@ -83,6 +83,7 @@ public enum ErrorCode {
     WALLET_IDEMPOTENCY_CONFLICT(409, "Khóa yêu cầu đã được dùng với nội dung khác"),
     WALLET_BANK_UNAVAILABLE(503, "Chưa cấu hình kết nối ngân hàng"),
     WALLET_BANK_ACCOUNT_NOT_FOUND(404, "Không tìm thấy tài khoản ngân hàng đã xác minh"),
+    WALLET_REFUND_NOT_FOUND(404, "Không tìm thấy yêu cầu hoàn hàng"),
 
     // ===== Voucher =====
     VOUCHER_NOT_FOUND(404, "Mã giảm giá không tồn tại"),

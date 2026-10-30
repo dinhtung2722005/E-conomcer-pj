@@ -16,6 +16,18 @@ public class WalletOrderFundsService {
     private final WalletRepository wallets;
     private final WalletTransactionRepository transactions;
     private final WalletHoldRepository holds;
+    private final WalletLedgerService ledger;
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void refundReturn(Order order) {
+        var wallet = wallets.findByUserIdForUpdate(order.getUserId()).orElseThrow();
+        BigDecimal paid = transactions.findOrderPaymentsForUpdate(wallet.getId(), order.getId().toString()).stream()
+                .map(WalletTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (paid.compareTo(order.getFinalAmount()) != 0) {
+            throw new IllegalStateException("Return has no matching wallet payment");
+        }
+        refundCancellation(order);
+    }
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void refundCancellation(Order order) {
@@ -33,6 +45,7 @@ public class WalletOrderFundsService {
             if (amount.signum() < 0 || hold.getRemainingAmount().compareTo(amount) < 0) {
                 throw new IllegalStateException("Payment refund requires settlement compensation");
             }
+            ledger.open(wallet);
             hold.release(amount);
             if (payment.getBalanceType() == WalletBalanceType.CASH) {
                 wallet.setPendingBalance(wallet.getPendingBalance().subtract(amount));
@@ -41,10 +54,12 @@ public class WalletOrderFundsService {
                 wallet.setPendingBonusBalance(wallet.getPendingBonusBalance().subtract(amount));
                 wallet.setBonusBalance(wallet.getBonusBalance().add(amount));
             }
-            transactions.saveAndFlush(WalletTransaction.builder().wallet(wallet).referenceId(payment.getReferenceId())
+            var refund = transactions.saveAndFlush(WalletTransaction.builder().wallet(wallet).referenceId(payment.getReferenceId())
                     .idempotencyKey("cancel:" + payment.getId()).type(TransactionType.REFUND)
                     .balanceType(payment.getBalanceType()).amount(amount).originalTransaction(payment)
                     .status(TransactionStatus.SUCCESS).completedAt(LocalDateTime.now()).build());
+            ledger.move("refund:" + refund.getId(), wallet.getCurrency(), ledger.account(wallet, payment.getBalanceType(), true),
+                    ledger.account(wallet, payment.getBalanceType(), false), amount);
         }
     }
 }

@@ -34,6 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingHeader(org.springframework.web.bind.MissingRequestHeaderException exception) {
+        return build(ErrorCode.INVALID_REQUEST, "Thiếu header bắt buộc: " + exception.getHeaderName());
+    }
 
     /** Lỗi nghiệp vụ đã lường trước. */
     @ExceptionHandler(AppException.class)

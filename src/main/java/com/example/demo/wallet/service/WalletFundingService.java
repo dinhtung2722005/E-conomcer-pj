@@ -36,6 +36,7 @@ public class WalletFundingService {
     private final ObjectProvider<BankGateway> gateways;
     private final PlatformTransactionManager transactionManager;
     private final ObjectMapper json;
+    private final WalletLedgerService ledger;
 
     public BankAccountSummaryResponse linkAccount(@NotNull @Valid LinkBankAccountRequest request) {
         Long userId = activeUserId();
@@ -128,6 +129,7 @@ public class WalletFundingService {
                 .filter(value -> value.getProvider().equals(provider))
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_BANK_ACCOUNT_NOT_FOUND));
         String reference = UUID.randomUUID().toString();
+        ledger.open(wallet);
         var operation = operations.create(wallet, key, fingerprint, type, reference);
         WalletHold hold = null;
         if (type == TransactionType.WITHDRAW) {
@@ -140,6 +142,10 @@ public class WalletFundingService {
                 .referenceId(reference).idempotencyKey("op:" + operation.getId() + ":CASH")
                 .type(type).amount(amount).hold(hold)
                 .destinationAccountReference(type == TransactionType.WITHDRAW ? account.getAccountToken() : null).build());
+        if (type == TransactionType.WITHDRAW) {
+            ledger.move("hold:" + transaction.getId(), wallet.getCurrency(),
+                    ledger.account(wallet, WalletBalanceType.CASH, false), ledger.account(wallet, WalletBalanceType.CASH, true), amount);
+        }
         return transfers.saveAndFlush(BankTransfer.builder().transaction(transaction).bankAccount(account)
                 .merchantReference(reference).nextAttemptAt(LocalDateTime.now()).build());
     }

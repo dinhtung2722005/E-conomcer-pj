@@ -17,6 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /** Pull reconciliation uses keyset IDs. Unknown outcomes retain holds and retry with the same reference. */
 @Service
+@lombok.extern.slf4j.Slf4j
 public class WalletBankWorker {
     private final BankTransferRepository transfers;
     private final WalletRepository wallets;
@@ -26,10 +27,12 @@ public class WalletBankWorker {
     private final ObjectMapper json;
     private final TransactionTemplate database;
     private final boolean enabled;
+    private final WalletLedgerService ledger;
 
     public WalletBankWorker(BankTransferRepository transfers, WalletRepository wallets,
             WalletTransactionRepository transactions, WalletHoldRepository holds, ObjectProvider<BankGateway> gateways,
             ObjectMapper json, PlatformTransactionManager transactionManager,
+            WalletLedgerService ledger,
             @Value("${wallet.bank.worker-enabled:true}") boolean enabled) {
         this.transfers = transfers;
         this.wallets = wallets;
@@ -38,6 +41,7 @@ public class WalletBankWorker {
         this.gateways = gateways;
         this.json = json;
         this.enabled = enabled;
+        this.ledger = ledger;
         this.database = new TransactionTemplate(transactionManager);
         this.database.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -54,8 +58,9 @@ public class WalletBankWorker {
             for (Long id : ids) {
                 try {
                     process(id);
-                } catch (RuntimeException ignored) {
+                } catch (RuntimeException exception) {
                     // A DB outage cannot turn an unknown bank outcome into failure; lease expiry retries it.
+                    log.warn("Bank transfer {} requires reconciliation ({})", id, exception.getClass().getSimpleName());
                 }
                 cursor = id;
             }
@@ -125,8 +130,13 @@ public class WalletBankWorker {
         transaction.setProvider(transfer.getBankAccount().getProvider());
         transaction.setProviderTransactionId(result.providerTransactionId());
         boolean success = result.state() == BankGateway.State.SUCCEEDED;
+        ledger.open(wallet);
         if (transaction.getType() == TransactionType.DEPOSIT) {
-            if (success) wallet.setBalance(wallet.getBalance().add(transaction.getAmount()));
+            if (success) {
+                wallet.setBalance(wallet.getBalance().add(transaction.getAmount()));
+                ledger.move("bank:" + transaction.getId(), wallet.getCurrency(), "platform:BANK_CLEARING",
+                        ledger.account(wallet, WalletBalanceType.CASH, false), transaction.getAmount());
+            }
         } else {
             if (hold == null || hold.getRemainingAmount().compareTo(transaction.getAmount()) != 0) {
                 throw new IllegalStateException("Withdrawal hold is inconsistent");
@@ -137,6 +147,8 @@ public class WalletBankWorker {
                 hold.release(transaction.getAmount());
                 wallet.setBalance(wallet.getBalance().add(transaction.getAmount()));
             }
+            ledger.move("bank:" + transaction.getId(), wallet.getCurrency(), ledger.account(wallet, WalletBalanceType.CASH, true),
+                    success ? "platform:BANK_CLEARING" : ledger.account(wallet, WalletBalanceType.CASH, false), transaction.getAmount());
         }
         transaction.setStatus(success ? TransactionStatus.SUCCESS : TransactionStatus.FAILED);
         transaction.setCompletedAt(LocalDateTime.now());

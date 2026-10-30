@@ -15,6 +15,9 @@ import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderStatus;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
+    @org.springframework.data.jpa.repository.Query("select o.id from Order o where o.status = com.example.demo.ecommerce.entity.OrderStatus.COMPLETED "
+            + "and o.settledAt is null and o.settlementAvailableAt <= :now and o.id > :afterId order by o.id")
+    java.util.List<Long> findSettlementDueIds(java.time.LocalDateTime now, Long afterId, org.springframework.data.domain.Pageable page);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.id = :id")

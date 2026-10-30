@@ -19,6 +19,9 @@ import com.example.demo.wallet.entity.WalletHoldType;
 import jakarta.persistence.LockModeType;
 
 public interface WalletHoldRepository extends JpaRepository<WalletHold, Long> {
+    @Query("select coalesce(sum(h.amount - h.capturedAmount - h.releasedAmount), 0) from WalletHold h "
+            + "where h.wallet.id = :walletId and h.balanceType = :type")
+    java.math.BigDecimal sumRemaining(Long walletId, WalletBalanceType type);
     Optional<WalletHold> findByIdAndWalletId(Long id, Long walletId);
 
     Optional<WalletHold> findByWalletIdAndTypeAndReferenceIdAndBalanceType(Long walletId, WalletHoldType type,

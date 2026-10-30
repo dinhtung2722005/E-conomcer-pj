@@ -117,7 +117,7 @@ service không dùng delete để xóa lịch sử tài chính hoặc hold đã 
 
 - `initializeWallet(userId)` là hook nội bộ cho ứng dụng/đăng ký, không bind userId
   từ HTTP khách. Khóa user trước rồi đọc/khởi tạo ví bằng current read để tránh
-  tạo trùng khi hai yêu cầu đồng thời. Chưa nối hook này vào AuthService.
+  tạo trùng khi hai yêu cầu đồng thời. AuthService gọi trong transaction đăng ký.
 - `initializeMyWallet()`, `getMyWallet()`, `getHistory(query)`, `getTransaction(id)`
   và `getHolds(query)` lấy chủ sở hữu từ CurrentUserService. GET không tự tạo ví.
 - `freezeMyWallet(request)` chỉ khóa ví hiện tại. `freezeWallet(id, request)` và
@@ -132,7 +132,8 @@ service không dùng delete để xóa lịch sử tài chính hoặc hold đã 
 - Response DTO không chứa entity, PIN/hash, idempotency key hoặc token ngân hàng.
   Lỗi raw từ đối tác không trả cho khách; giao dịch FAILED dùng thông báo chung.
 - Đã có controller/API quản lý ví tại `/api/wallet` và `/api/admin/wallets`;
-  xem [API ví](wallet-api.md). Chưa có WalletSecurityService hoặc nghiệp vụ ghi tiền. Mở
+  xem [API ví](wallet-api.md). PIN dùng WalletPinService; nghiệp vụ tiền dùng các
+  service funding/payment/refund/settlement và WalletLedgerService. Mở
   khóa quản trị trong bước này dựa trên quyền ADMIN và lý do có audit; khi thêm
   xác minh nâng cao cần đặt trước luồng này, không mở unfreeze cho khách.
 
@@ -151,7 +152,7 @@ service không dùng delete để xóa lịch sử tài chính hoặc hold đã 
   confirmPin. PIN/mật khẩu là WRITE_ONLY khi bind JSON, DTO không có toString
   chứa dữ liệu này. Không log body request/giá trị lỗi validation của secrets.
 - WalletMapper có thêm toSecurityResponse; các response nạp/rút/thanh toán/
-  hoàn tiền sẽ được dựng trong service tương ứng khi triển khai nghiệp vụ.
+  hoàn tiền được dựng trong service tương ứng, không trả trực tiếp entity.
 
 ## Database đang có dữ liệu
 
@@ -183,4 +184,14 @@ ADMIN, validation DTO, audit idempotent và rollback khi ghi audit thất bại.
 chạy độc lập với database.
 `WalletControllerIntegrationTests` gọi HTTP/JWT thật, kiểm tra xác thực/phân quyền,
 scope chủ sở hữu, bind/validate query/body, HTTP status và audit qua API.
-Controller quản lý ví đã có; tích hợp checkout chưa được thêm.
+`WalletPinIntegrationTests` kiểm tra khóa PIN và bộ đếm commit độc lập;
+`WalletFundingIntegrationTests` kiểm tra gateway test, outbox, timeout, chống lặp
+và hai lần rút cùng số dư. `WalletPaymentIntegrationTests` kiểm tra CASH/BONUS,
+rollback kho/tiền và hoàn tiền nguyên tử. `WalletSettlementIntegrationTests`
+kiểm tra chia tiền nhiều người bán, cashback, duyệt hoàn, journal, đối soát và
+quyết toán đồng thời. Các gateway giả chỉ nằm trong src/test.
+
+Model bổ sung: WalletOperation (fingerprint), LinkedBankAccount, BankTransfer
+(outbox/lease/retry), WalletJournal/WalletJournalEntry và WalletRefundCase.
+Order/OrderItem bổ sung snapshot người bán, phân bổ phí, thời điểm nhận hàng,
+hết thời hạn hoàn và quyết toán. Xem [vận hành ví](wallet-operations.md).

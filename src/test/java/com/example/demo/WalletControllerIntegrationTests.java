@@ -46,6 +46,37 @@ import tools.jackson.databind.ObjectMapper;
         properties = {"debug=false", "logging.level.org.springframework=WARN", "logging.level.org.hibernate=WARN"})
 @ContextConfiguration(initializers = IsolatedMySqlDatabase.class)
 class WalletControllerIntegrationTests {
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    @Autowired com.example.demo.wallet.repository.WalletSecurityRepository pinSecurity;
+
+    @Test
+    void pinEndpointsHideSecretsAndPersistFailedAttempts() throws Exception {
+        User customer = user(UserRole.CUSTOMER); Wallet wallet = wallet(customer); String token = jwt.generateToken(customer);
+        assertStatus(401, http("POST", "/api/wallet/pin", null, "{}"));
+        String setup = "{\"currentPassword\":\"password123\",\"newPin\":\"123456\",\"confirmPin\":\"123456\"}";
+        var response = http("POST", "/api/wallet/pin", token, setup); assertStatus(200, response);
+        assertTrue(result(response).get("pinConfigured").asBoolean());
+        assertFalse(response.body().contains("123456")); assertFalse(response.body().contains("pinHash"));
+        assertStatus(200, http("GET", "/api/wallet/security", token, null));
+        String wrong = "{\"currentPin\":\"000000\",\"newPin\":\"654321\",\"confirmPin\":\"654321\"}";
+        assertStatus(400, http("PUT", "/api/wallet/pin", token, wrong));
+        assertEquals(1, pinSecurity.findById(wallet.getId()).orElseThrow().getFailedPinAttempts());
+        String correct = "{\"currentPin\":\"123456\",\"newPin\":\"654321\",\"confirmPin\":\"654321\"}";
+        assertStatus(200, http("PUT", "/api/wallet/pin", token, correct));
+    }
+
+    @Test
+    void missingBankConfigurationCannotCreateMoneyAndIdempotencyHeaderIsRequired() throws Exception {
+        User customer = user(UserRole.CUSTOMER); Wallet wallet = wallet(customer); String token = jwt.generateToken(customer);
+        String body = "{\"amount\":100,\"linkedBankAccountId\":1}";
+        assertStatus(400, http("POST", "/api/wallet/top-ups", token, body));
+        var request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/wallet/top-ups"))
+                .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
+                .header("Idempotency-Key", "deposit").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+        assertStatus(503, client.send(request, HttpResponse.BodyHandlers.ofString()));
+        assertEquals(0, new BigDecimal("100").compareTo(wallets.findById(wallet.getId()).orElseThrow().getBalance()));
+        assertStatus(403, http("GET", "/api/admin/wallets/" + wallet.getId() + "/reconciliation", token, null));
+    }
     @Autowired UserRepository users;
     @Autowired WalletRepository wallets;
     @Autowired WalletTransactionRepository transactions;
@@ -224,7 +255,7 @@ class WalletControllerIntegrationTests {
     private User user(UserRole role) {
         String suffix = UUID.randomUUID().toString();
         return users.saveAndFlush(User.builder().username("http-" + suffix).email(suffix + "@example.test")
-                .password("test-only-password").role(role).build());
+                .password(passwordEncoder.encode("password123")).role(role).build());
     }
 
     private Wallet wallet(User user) {

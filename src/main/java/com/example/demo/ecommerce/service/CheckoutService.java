@@ -39,6 +39,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class CheckoutService {
+    private final com.example.demo.wallet.service.WalletSettlementPolicy settlementPolicy;
 
     /** Mọi số tiền được làm tròn về 2 chữ số thập phân (đơn vị tiền tệ). */
     private static final int MONEY_SCALE = 2;
@@ -89,6 +90,7 @@ public class CheckoutService {
 
             order.addItem(OrderItem.builder()
                     .product(product)
+                    .sellerId(product.getSellerId())
                     .productName(product.getName())
                     .quantity(cartItem.getQuantity())
                     .priceAtPurchase(unitPrice)
@@ -107,6 +109,7 @@ public class CheckoutService {
 
         order.setDiscountAmount(discountAmount);
         order.setFinalAmount(totalAmount.subtract(discountAmount).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        settlementPolicy.snapshot(order);
 
         Order savedOrder = orderRepository.save(order);
 
