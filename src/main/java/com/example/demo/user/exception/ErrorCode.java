@@ -85,6 +85,14 @@ public enum ErrorCode {
     WALLET_BANK_ACCOUNT_NOT_FOUND(404, "Không tìm thấy tài khoản ngân hàng đã xác minh"),
     WALLET_REFUND_NOT_FOUND(404, "Không tìm thấy yêu cầu hoàn hàng"),
     WALLET_ORDER_NOT_READY(409, "Đơn chưa có đủ thông tin người bán và ví nhận để thanh toán"),
+    WALLET_WITHDRAWAL_COOLDOWN(429,"Ví đang tạm chặn rút sau thay đổi bảo mật"),
+    WALLET_RECOVERY_UNAVAILABLE(503,"Chưa cấu hình hoặc không thể gửi email khôi phục"),
+    WALLET_RECOVERY_CONTACT_REQUIRED(409,"Cần đăng ký email khôi phục bằng PIN hiện tại"),
+    WALLET_RECOVERY_RATE_LIMIT(429,"Đã vượt số lần yêu cầu mã; vui lòng thử lại sau"),
+    WALLET_RECOVERY_INVALID(400,"Mã xác minh không đúng, đã hết hạn hoặc đã được sử dụng"),
+    WALLET_BANK_ACCOUNT_REVOKED(409,"Liên kết ngân hàng đã được thu hồi"),
+    WALLET_TRANSFER_ALREADY_DISPATCHED(409,"Không thể hủy yêu cầu rút đã bắt đầu gửi ngân hàng"),
+    WALLET_NOTIFICATION_NOT_FOUND(404,"Không tìm thấy thông báo"),
 
     // ===== Voucher =====
     VOUCHER_NOT_FOUND(404, "Mã giảm giá không tồn tại"),

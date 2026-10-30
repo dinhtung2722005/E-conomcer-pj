@@ -7,6 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class BankAccountSummaryResponse {
+    private boolean active;
     private Long linkedBankAccountId;
     private String bankCode;
     private String bankName;

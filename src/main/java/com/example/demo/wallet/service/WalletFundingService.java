@@ -48,6 +48,7 @@ public class WalletFundingService {
             Wallet wallet = lockWallet(userId);
             var existing = accounts.findByProviderAndAccountToken(gateway.provider(), verified.accountToken());
             if (existing.isPresent()) {
+                if(existing.get().getRevokedAt()!=null)throw new AppException(ErrorCode.WALLET_BANK_ACCOUNT_REVOKED);
                 if (!existing.get().getWallet().getId().equals(wallet.getId())) {
                     throw new AppException(ErrorCode.ACCESS_DENIED);
                 }
@@ -93,6 +94,7 @@ public class WalletFundingService {
             pins.lockAuthorizingUser(authorization);
             Wallet wallet = lockWallet(userId);
             pins.requireAuthorization(authorization, wallet, fingerprint);
+            pins.requireWithdrawalAllowed(wallet);
             var existing = operations.find(wallet, key, fingerprint);
             if (existing.isPresent()) {
                 return withdrawResponse(transfers.findByTransactionOperationId(existing.get().getId()).orElseThrow());
@@ -127,6 +129,7 @@ public class WalletFundingService {
     private BankTransfer createTransfer(Wallet wallet, Long accountId, BigDecimal amount, String key,
             String fingerprint, TransactionType type, String provider) {
         LinkedBankAccount account = accounts.findByIdAndWalletId(accountId, wallet.getId())
+                .filter(value->value.getRevokedAt()==null)
                 .filter(value -> value.getProvider().equals(provider))
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_BANK_ACCOUNT_NOT_FOUND));
         String reference = UUID.randomUUID().toString();
@@ -183,6 +186,7 @@ public class WalletFundingService {
 
     private BankAccountSummaryResponse bankSummary(LinkedBankAccount account) {
         var result = new BankAccountSummaryResponse();
+        result.setActive(account.getRevokedAt()==null);
         result.setLinkedBankAccountId(account.getId());
         result.setBankCode(account.getBankCode());
         result.setBankName(account.getBankName());

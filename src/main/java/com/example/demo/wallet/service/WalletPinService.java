@@ -84,6 +84,7 @@ public class WalletPinService {
                 return failedAttempt(row, ErrorCode.OLD_PASSWORD_INCORRECT);
             }
             changeHash(row, request.getNewPin());
+            row.setRecoveryEmail(context.user().getEmail());
             return Result.success(mapper.toSecurityResponse(row));
         });
     }
@@ -123,6 +124,13 @@ public class WalletPinService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
         if (user.getTokenVersion() != authorization.tokenVersion) throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
+    }
+
+    void requireWithdrawalAllowed(Wallet wallet) {
+        var row=security.findByWalletIdForUpdate(wallet.getId()).orElseThrow();
+        if(row.getWithdrawalBlockedUntil()!=null && row.getWithdrawalBlockedUntil().isAfter(LocalDateTime.now())) {
+            throw new AppException(ErrorCode.WALLET_WITHDRAWAL_COOLDOWN);
+        }
     }
 
     /** Call after locking the wallet in the financial transaction, before changing balances. */

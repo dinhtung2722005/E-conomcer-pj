@@ -35,6 +35,7 @@ public class IsolatedMySqlDatabase implements ApplicationContextInitializer<Conf
                 "wallet.bank.worker-enabled=false",
                 "wallet.reconciliation.worker-enabled=false",
                 "wallet.ops.worker-enabled=false",
+                "wallet.notifications.worker-enabled=false",
                 "app.order.cleanup-initial-delay-ms=3600000",
                 "app.token.cleanup-initial-delay-ms=3600000",
                 "app.flash-sale.status-sync-interval-ms=3600000")

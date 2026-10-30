@@ -74,6 +74,7 @@ public class WalletTransaction {
     @JoinColumn(name = "wallet_id", nullable = false, updatable = false)
     @NotNull
     private Wallet wallet;
+    @Column(nullable=false) @ColumnDefault("0") private boolean notificationPublished;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "operation_id", updatable = false)

@@ -106,6 +106,7 @@ public class WalletBankWorker {
                 || !transfer.getBankAccount().getProvider().equals(provider)) return null;
         boolean blocked = transaction.getType() == TransactionType.WITHDRAW
                 && (wallet.getStatus() != WalletStatus.ACTIVE || user == null || !user.isActive()
+                    || transfer.getBankAccount().getRevokedAt()!=null
                     || pin!=null&&pin.getWithdrawalBlockedUntil()!=null&&pin.getWithdrawalBlockedUntil().isAfter(now));
         if (blocked && transfer.getDispatchStartedAt() == null && transfer.getAttempts() == 0) {
             transfer.setSuspended(true); transfer.setLastError("WALLET_SUSPENDED");

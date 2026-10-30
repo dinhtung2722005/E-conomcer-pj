@@ -29,4 +29,5 @@ public class LinkedBankAccount {
     private String maskedAccountNumber;
     @Column(nullable = false, length = 150, updatable = false)
     private String accountHolderName;
+    private java.time.LocalDateTime revokedAt;
 }
