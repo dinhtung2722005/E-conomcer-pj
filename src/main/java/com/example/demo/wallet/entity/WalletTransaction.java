@@ -75,6 +75,11 @@ public class WalletTransaction {
     @NotNull
     private Wallet wallet;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "operation_id", updatable = false)
+    @JsonIgnore
+    private WalletOperation operation;
+
     /** Business reference (order/top-up/withdrawal). May be shared by different operations. */
     @Column(name = "reference_id", nullable = false, length = 100, updatable = false)
     @NotBlank

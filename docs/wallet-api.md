@@ -1,7 +1,8 @@
 # API quản lý ví
 
 Ví được tạo cùng transaction đăng ký; tài khoản cũ có thể gọi POST để khởi tạo.
-PIN có API thiết lập/đổi và trạng thái bảo mật. Nạp/rút, thanh toán đơn đang được bổ sung.
+PIN có API thiết lập/đổi và trạng thái bảo mật. Nạp/rút có nghiệp vụ và hàng đợi
+ngân hàng; cần cài BankGateway của đối tác để giao dịch tiền thật.
 
 ## Xác thực và response
 
@@ -31,6 +32,12 @@ tạo ví là idempotent theo user, trả 200 cả khi mới tạo và khi ví �
 | GET | `/api/wallet/security` | Không có | WalletSecurityResponse |
 | POST | `/api/wallet/pin` | SetupPinRequest | WalletSecurityResponse |
 | PUT | `/api/wallet/pin` | ChangePinRequest | WalletSecurityResponse |
+| GET | `/api/wallet/bank-accounts` | Không có | List<BankAccountSummaryResponse> |
+| POST | `/api/wallet/bank-accounts` | LinkBankAccountRequest | BankAccountSummaryResponse |
+| POST | `/api/wallet/top-ups` | TopUpRequest + Idempotency-Key | TopUpResponse |
+| GET | `/api/wallet/top-ups/{id}` | ID giao dịch của tôi | TopUpResponse |
+| POST | `/api/wallet/withdrawals` | WithdrawRequest + Idempotency-Key | WithdrawResponse |
+| GET | `/api/wallet/withdrawals/{id}` | ID giao dịch của tôi | WithdrawResponse |
 | GET | `/api/wallet/transactions` | WalletHistoryQuery qua query string | PageResponse<WalletTransactionResponse> |
 | GET | `/api/wallet/transactions/{id}` | ID giao dịch dương | WalletTransactionResponse |
 | GET | `/api/wallet/holds` | WalletHoldQuery qua query string | PageResponse<WalletHoldResponse> |

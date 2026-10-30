@@ -20,6 +20,13 @@ import com.example.demo.wallet.entity.WalletTransaction;
 import jakarta.persistence.LockModeType;
 
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from WalletTransaction t where t.wallet.id = :walletId and t.referenceId = :reference "
+            + "and t.type = com.example.demo.wallet.entity.TransactionType.PAYMENT "
+            + "and t.status = com.example.demo.wallet.entity.TransactionStatus.SUCCESS order by t.id")
+    List<WalletTransaction> findOrderPaymentsForUpdate(Long walletId, String reference);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<WalletTransaction> findByOperationIdOrderByIdAsc(Long operationId);
     Optional<WalletTransaction> findByIdAndWalletId(Long id, Long walletId);
 
     Optional<WalletTransaction> findByWalletIdAndIdempotencyKey(Long walletId, String idempotencyKey);
