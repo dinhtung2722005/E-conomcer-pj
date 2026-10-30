@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     /** Lỗi nghiệp vụ đã lường trước. */
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex, HttpServletRequest request) {
-        log.debug("Nghiệp vụ từ chối [{} {}]: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        log.debug("Nghiệp vụ từ chối: {}", ex.getErrorCode().name());
         return build(ex.getErrorCode(), ex.getMessage());
     }
 
@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
     /** Vi phạm ràng buộc dữ liệu (unique, foreign key...). Không lộ chi tiết SQL. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Vi phạm ràng buộc dữ liệu: {}", ex.getMostSpecificCause().getMessage());
+        log.warn("Vi phạm ràng buộc dữ liệu ({})", ex.getClass().getSimpleName());
         return build(ErrorCode.DATA_CONFLICT, ErrorCode.DATA_CONFLICT.getMessage());
     }
 
@@ -152,7 +152,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception ex, HttpServletRequest request) {
-        log.error("Lỗi không mong đợi tại [{} {}]", request.getMethod(), request.getRequestURI(), ex);
+        log.error("Lỗi không mong đợi ({})", ex.getClass().getName(), ex);
         return build(ErrorCode.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
     }
 

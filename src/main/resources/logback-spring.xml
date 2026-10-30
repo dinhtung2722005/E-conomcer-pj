@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="LOG_PATH" source="app.logging.directory" defaultValue="logs"/>
+    <springProperty scope="context" name="MAX_FILE_SIZE" source="app.logging.max-file-size" defaultValue="20MB"/>
+    <springProperty scope="context" name="MAX_HISTORY" source="app.logging.max-history" defaultValue="30"/>
+    <springProperty scope="context" name="TOTAL_SIZE_CAP" source="app.logging.total-size-cap" defaultValue="1GB"/>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="com.example.demo.observability.SafeJsonLogEncoder"/>
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/application.jsonl</file>
+        <encoder class="com.example.demo.observability.SafeJsonLogEncoder"/>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/application.%d{yyyy-MM-dd,UTC}.%i.jsonl.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+    <!-- SQL/bind/HTTP wire logs can contain credentials or financial data. -->
+    <logger name="org.hibernate.SQL" level="OFF"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="OFF"/>
+    <logger name="org.hibernate.engine.jdbc.spi.SqlExceptionHelper" level="OFF"/>
+    <logger name="org.hibernate.orm.jdbc.error" level="OFF"/>
+    <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="OFF"/>
+    <root level="INFO"><appender-ref ref="CONSOLE"/><appender-ref ref="FILE"/></root>
+</configuration>

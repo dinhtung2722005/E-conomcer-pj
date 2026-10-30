@@ -147,7 +147,7 @@ public class JwtUtils {
             parseClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
-            log.debug("Token không hợp lệ: {}", e.getMessage());
+            log.debug("Token không hợp lệ ({})", e.getClass().getSimpleName());
             return false;
         }
     }

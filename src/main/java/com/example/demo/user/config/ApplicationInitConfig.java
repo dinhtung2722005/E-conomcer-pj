@@ -23,20 +23,19 @@ public class ApplicationInitConfig {
      * Tạo tài khoản admin đầu tiên nếu chưa có.
      *
      * <p>Mật khẩu lấy từ biến môi trường {@code ADMIN_INITIAL_PASSWORD}. Nếu không
-     * cấu hình, sinh mật khẩu ngẫu nhiên và in ra log một lần — không dùng mật khẩu
-     * mặc định cố định như {@code admin/admin} vì rất dễ bị quét và chiếm quyền.
+     * cấu hình, bỏ qua khởi tạo admin. Không sinh hoặc in mật khẩu ra log.
      */
     @Bean
-    ApplicationRunner applicationRunner(UserRepository userRepository) {
+    ApplicationRunner applicationRunner(UserRepository userRepository,
+            @org.springframework.beans.factory.annotation.Value("${ADMIN_INITIAL_PASSWORD:}") String initialPassword) {
         return args -> {
             if (userRepository.existsByUsername("admin")) {
                 return;
             }
 
-            String initialPassword = System.getenv("ADMIN_INITIAL_PASSWORD");
-            boolean generated = initialPassword == null || initialPassword.isBlank();
-            if (generated) {
-                initialPassword = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            if (initialPassword == null || initialPassword.isBlank()) {
+                log.warn("Bỏ qua khởi tạo admin: cần cấu hình ADMIN_INITIAL_PASSWORD qua môi trường triển khai.");
+                return;
             }
 
             User adminUser = User.builder()
@@ -48,12 +47,7 @@ public class ApplicationInitConfig {
 
             userRepository.save(adminUser);
 
-            if (generated) {
-                log.warn("Đã tạo tài khoản admin với mật khẩu tạm thời: {}. "
-                        + "HÃY ĐỔI MẬT KHẨU NGAY sau lần đăng nhập đầu tiên.", initialPassword);
-            } else {
-                log.warn("Đã tạo tài khoản admin với mật khẩu từ ADMIN_INITIAL_PASSWORD. Hãy đổi mật khẩu sau khi đăng nhập.");
-            }
+            log.warn("Đã khởi tạo tài khoản admin. Hãy đổi mật khẩu sau khi đăng nhập.");
         };
     }
 }
