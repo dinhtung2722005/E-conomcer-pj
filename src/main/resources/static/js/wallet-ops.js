@@ -9,7 +9,8 @@
     refunds: ["Hồ sơ hoàn tiền", [["id","Hồ sơ"],["orderId","Đơn"],["status","Trạng thái"],["reason","Lý do"],["createdAt","Tiếp nhận"],["slaBreached","Quá hạn"]]],
     settlements: ["Quyết toán", [["orderId","Đơn"],["amount","Số tiền"],["availableAt","Đủ điều kiện lúc"],["attempts","Lần xử lý"],["lastError","Cần kiểm tra"],["slaBreached","Quá hạn"]]],
     alerts: ["Cảnh báo", [["id","Mã"],["category","Nhóm"],["reference","Tham chiếu"],["message","Nội dung"],["status","Trạng thái"],["lastSeenAt","Ghi nhận gần nhất"]]],
-    audit: ["Lịch sử thao tác", [["id","Mã"],["actorId","Người thao tác"],["action","Thao tác"],["reference","Tham chiếu"],["reason","Lý do"],["createdAt","Thời điểm"]]]
+    audit: ["Lịch sử thao tác", [["id","Mã"],["actorId","Người thao tác"],["action","Thao tác"],["reference","Tham chiếu"],["reason","Lý do"],["createdAt","Thời điểm"]]],
+    debts: ["Công nợ hoàn tiền", [["id","Mã"],["userId","Tài khoản"],["refundCaseId","Hồ sơ hoàn"],["source","Nguồn"],["currency","Tiền tệ"],["amount","Phải thu"],["repaid","Đã thu hồi"]]]
   };
   async function api(url, body) {
     const headers = {"Content-Type":"application/json"}; if (token) headers.Authorization = `Bearer ${token}`;
@@ -36,8 +37,8 @@
         if(tab==="transfers"&&!row.finished)button(actions,"Thử lại",()=>openAction("Lên lịch kiểm tra lại giao dịch",`${root}/transfers/${row.id}/retry`,{}));
         if(tab==="settlements")button(actions,"Thử lại",()=>openAction("Lên lịch quyết toán lại",`${root}/settlements/${row.orderId}/retry`,{}));
         if(tab==="refunds"&&row.status==="REQUESTED"){
-          button(actions,"Duyệt hoàn",()=>openAction("Xác nhận đã kiểm tra hồ sơ/hàng trả",`/api/admin/orders/${row.orderId}/refund/decision`,{approved:true}));
-          button(actions,"Từ chối",()=>openAction("Từ chối yêu cầu hoàn",`/api/admin/orders/${row.orderId}/refund/decision`,{approved:false}));
+          button(actions,"Duyệt hoàn",()=>openAction("Xác nhận đã kiểm tra hồ sơ/hàng trả",`/api/admin/orders/${row.orderId}/refund/decision`,{approved:true,caseId:row.id}));
+          button(actions,"Từ chối",()=>openAction("Từ chối yêu cầu hoàn",`/api/admin/orders/${row.orderId}/refund/decision`,{approved:false,caseId:row.id}));
         }
         if(tab==="alerts"){
           button(actions,"Tiếp nhận",()=>openAction("Tiếp nhận cảnh báo",`${root}/alerts/${row.id}/review`,{status:"ACKNOWLEDGED"}));

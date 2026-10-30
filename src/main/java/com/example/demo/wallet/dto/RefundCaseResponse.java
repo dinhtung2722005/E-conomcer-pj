@@ -9,6 +9,9 @@ import lombok.Setter;
 public class RefundCaseResponse {
     private Long id;
     private Long orderId;
+    private java.math.BigDecimal amount;
+    private java.util.List<Line> items;
+    public record Line(Long orderItemId,int quantity,java.math.BigDecimal amount) {}
     private WalletRefundCase.Status status;
     private String reason;
     private String decisionReason;

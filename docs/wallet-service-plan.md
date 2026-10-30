@@ -3,7 +3,9 @@
 Trạng thái: đã triển khai quản lý ví, PIN, hook đăng ký, nạp/rút qua outbox,
 thanh toán/hủy, hồ sơ hoàn toàn bộ đơn, quyết toán theo snapshot người bán,
 cashback cấu hình được và sổ đối ứng/đối soát. Chưa có adapter ngân hàng thật,
-webhook theo giao thức đối tác, sinh trắc học hoặc khôi phục PIN.
+webhook theo giao thức đối tác hoặc sinh trắc học. Đã bổ sung khôi phục PIN qua
+email, vận hành/cảnh báo và hoàn một phần/bù trừ sau giải ngân; xem
+[tài liệu bổ sung](wallet-improvements.md) để biết trạng thái mới nhất.
 Chính sách đã chọn: phí 0%, cashback tắt, cửa sổ hoàn hàng 7 ngày.
 Xem [API ví](wallet-api.md), [kết nối ngân hàng](wallet-bank-integration.md)
 và [quyết toán/vận hành](wallet-operations.md) để biết hành vi hiện tại.

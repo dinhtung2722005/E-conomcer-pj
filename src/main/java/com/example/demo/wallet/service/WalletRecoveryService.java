@@ -48,7 +48,7 @@ public class WalletRecoveryService {
     }
     private Start start(WalletPinRecovery.Purpose purpose,WalletPinService.Authorization auth){
         var sender=delivery.getIfAvailable();if(sender==null)throw new AppException(ErrorCode.WALLET_RECOVERY_UNAVAILABLE);
-        String code=String.format("%08d",random.nextInt(100000000));
+        String code=String.format(java.util.Locale.ROOT,"%08d",random.nextInt(100000000));
         Pending pending=database.execute(tx->{
             User user=lockUser();var wallet=wallets.findByUserIdForUpdate(user.getId()).orElseThrow(()->new AppException(ErrorCode.WALLET_NOT_FOUND));
             var row=security.findByWalletIdForUpdate(wallet.getId()).orElseThrow(()->new AppException(ErrorCode.WALLET_PIN_NOT_CONFIGURED));

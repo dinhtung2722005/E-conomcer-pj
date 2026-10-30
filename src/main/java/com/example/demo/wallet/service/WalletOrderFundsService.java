@@ -19,17 +19,6 @@ public class WalletOrderFundsService {
     private final WalletLedgerService ledger;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void refundReturn(Order order) {
-        var wallet = wallets.findByUserIdForUpdate(order.getUserId()).orElseThrow();
-        BigDecimal paid = transactions.findOrderPaymentsForUpdate(wallet.getId(), order.getId().toString()).stream()
-                .map(WalletTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (paid.compareTo(order.getFinalAmount()) != 0) {
-            throw new IllegalStateException("Return has no matching wallet payment");
-        }
-        refundCancellation(order);
-    }
-
-    @Transactional(propagation = Propagation.MANDATORY)
     public void refundCancellation(Order order) {
         var wallet = wallets.findByUserIdForUpdate(order.getUserId()).orElse(null);
         // Legacy orders without wallet payments do not mint a wallet refund.

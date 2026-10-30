@@ -44,6 +44,21 @@ tạo ví là idempotent theo user, trả 200 cả khi mới tạo và khi ví �
 | GET | `/api/orders/{id}/refund` | ID đơn của tôi | RefundCaseResponse |
 | POST | `/api/admin/orders/{id}/refund/decision` | RefundDecisionRequest | RefundCaseResponse |
 | GET | `/api/admin/wallets/{id}/reconciliation` | ID ví | WalletReconciliationResponse |
+| GET | `/api/admin/wallet-ops/summary` | ADMIN | Tổng quan vận hành |
+| GET | `/api/admin/wallet-ops/{transfers,holds,refunds,settlements,alerts,audit,debts}` | Phân trang ADMIN | Danh sách vận hành |
+| POST | `/api/wallet/pin/recovery` | Không body | Challenge/email đã che |
+| POST | `/api/wallet/pin/recovery/confirm` | challengeId, code, newPin, confirmPin | Đăng nhập lại sau reset |
+| POST | `/api/wallet/security/recovery-email` | pin | Challenge xác minh email |
+| POST | `/api/wallet/security/recovery-email/confirm` | challengeId, code | Xác minh email bảo vệ |
+| POST | `/api/wallet/bank-accounts/{id}/revoke` | pin, reason | Thu hồi liên kết |
+| POST | `/api/wallet/withdrawals/{id}/cancel` | pin, reason | Hủy rút chưa gửi |
+| GET | `/api/wallet/notifications` | Phân trang | Thông báo của tôi |
+| POST | `/api/wallet/notifications/{id}/read` | Không body | Đánh dấu đã đọc |
+| POST | `/api/admin/orders/{id}/refund` | requestKey, reason, items | Hồ sơ ngoại lệ ADMIN |
+| GET | `/api/admin/wallet-ops/refund-reserve` | currency | Quỹ hoàn |
+| POST | `/api/admin/wallet-ops/refund-reserve/fund` | amount, pin, reason + Idempotency-Key | Cấp quỹ từ CASH ADMIN |
+| GET | `/api/wallet/debts` | Phân trang | Công nợ của tôi |
+| POST | `/api/wallet/debts/repay` | amount, pin, reason + Idempotency-Key | Trả công nợ từ CASH |
 | GET | `/api/wallet/transactions` | WalletHistoryQuery qua query string | PageResponse<WalletTransactionResponse> |
 | GET | `/api/wallet/transactions/{id}` | ID giao dịch dương | WalletTransactionResponse |
 | GET | `/api/wallet/holds` | WalletHoldQuery qua query string | PageResponse<WalletHoldResponse> |
@@ -74,13 +89,16 @@ cùng key trả kết quả thanh toán gốc; key mới không thể thanh toá
 
 Nhận hàng, cửa sổ hoàn 7 ngày, duyệt hoàn, quyết toán và cấu hình cashback/phí
 được mô tả tại [vận hành ví](wallet-operations.md). Hiện mặc định phí 0%, cashback
-tắt. Nạp/rút yêu cầu adapter ngân hàng thật; xem [hợp đồng adapter](wallet-bank-integration.md).
+tắt. API hoàn một phần, quỹ/công nợ, cấu hình SMTP và yêu cầu nâng cấp dữ liệu
+được mô tả trong [các bổ sung sau rà soát](wallet-improvements.md).
+Nạp/rút yêu cầu adapter ngân hàng thật; xem [hợp đồng adapter](wallet-bank-integration.md).
 
 `GET /api/wallet/transactions` nhận:
 
 - `page`: mặc định 1, tối thiểu 1.
 - `size`: mặc định 10, từ 1 tới 100.
-- `type`: DEPOSIT, WITHDRAW, PAYMENT, REFUND, CASHBACK, SETTLEMENT, CASHBACK_REVERSAL.
+- `type`: DEPOSIT, WITHDRAW, PAYMENT, REFUND, CASHBACK, SETTLEMENT, CASHBACK_REVERSAL,
+  RESERVE_FUNDING, DEBT_REPAYMENT.
 - `status`: PENDING, PROCESSING, SUCCESS, FAILED, CANCELLED.
 - `from`, `to`: thời gian ISO local datetime, ví dụ `2026-10-19T00:00:00`.
   Khoảng lọc là `[from,to)`, from phải trước to khi cung cấp cả hai.

@@ -29,7 +29,8 @@ Token nhập trên trang chỉ giữ trong bộ nhớ, không lưu localStorage.
   lịch worker theo reference cũ, không tự đánh dấu thành công hay sửa số dư.
 - POST alerts/{id}/review nhận `{status,reason}`. Có lịch sử người thao tác/lý do.
 - SLA nạp/rút và hồ sơ hoàn mặc định 48h, cấu hình wallet.ops.transfer-sla và
-  wallet.ops.refund-sla. Worker tạo cảnh báo trùng khóa một lần, lưu lần ghi nhận
+  wallet.ops.refund-sla; khoản giữ mặc định 9 ngày qua wallet.ops.hold-sla.
+  Worker tạo cảnh báo trùng khóa một lần, lưu lần ghi nhận
   gần nhất; kiểm tra thêm tổng journal mất cân bằng và chênh lệch ví/sổ.
 - Cursor lưu trong DB, claim một lô trước xử lý, nhiều worker không claim cùng
   lô tại cùng thời điểm. Crash có thể lặp xử lý khi quét vòng, các nghiệp vụ vẫn
@@ -59,3 +60,88 @@ Token nhập trên trang chỉ giữ trong bộ nhớ, không lưu localStorage.
   chỉ chủ ví đọc/đánh dấu. Worker xuất sự kiện giao dịch cuối cùng từ DB, mỗi
   transaction một thông báo; retry không gửi trùng. Thay đổi bảo mật được lưu
   thông báo cùng transaction. Không gửi email giao dịch hàng loạt.
+
+## Chặng 5 — hoàn một phần và bù trừ sau quyết toán
+
+POST `/api/orders/{id}/refund` nhận:
+
+```json
+{
+  "requestKey": "return-order-123-item-1",
+  "reason": "Đã kiểm tra hàng lỗi",
+  "items": [{"orderItemId": 10, "quantity": 1}]
+}
+```
+
+Không truyền `items` nghĩa là hoàn toàn bộ số lượng chưa hoàn. Tiền/phí được tính
+từ snapshot đã lưu, không nhận amount do khách tự đặt. Từ chối dòng hàng không
+thuộc đơn, trùng dòng hoặc vượt số lượng còn lại. Cùng requestKey khác payload
+trả 409; gửi lại cùng payload trả cùng hồ sơ. Nếu bỏ key để tương thích API cũ,
+server dùng hash reason/items làm key; muốn tạo hồ sơ mới phải dùng key mới.
+Một đơn có thể có nhiều hồ sơ đã xử lý nhưng chỉ một hồ sơ REQUESTED tại một lúc.
+
+Duyệt qua POST `/api/admin/orders/{id}/refund/decision` với
+`{caseId,approved,reason}`. Khi đơn có nhiều hồ sơ phải chỉ rõ caseId. Dashboard
+luôn gửi caseId. Chỉ duyệt mới thay đổi tiền/kho, từ chối không làm biến động tiền.
+Trả kho đúng số lượng; chỉ hoàn voucher và chuyển REFUNDED khi đã trả toàn bộ
+số lượng. Đơn trả một phần vẫn COMPLETED, quyết toán phần còn lại sau hạn.
+
+Hoàn trước giải ngân release đúng CASH/BONUS gốc; quyết toán chỉ capture phần
+còn giữ, trả người bán/phí theo phân bổ sau hoàn. BONUS không biến thành CASH.
+Thanh toán tự mua sản phẩm của chính mình bị từ chối để tránh chuyển BONUS sang
+CASH qua quyết toán giả.
+
+Khách giữ thời hạn 7 ngày. ADMIN có thể tạo hồ sơ ngoại lệ bằng POST
+`/api/admin/orders/{id}/refund`, cùng body ở trên, kể cả sau hạn hoặc sau quyết
+toán. Đây mới là bước tạo hồ sơ; vẫn phải duyệt riêng và kiểm tra nguồn tiền.
+
+Hoàn sau quyết toán không release lại hold đã capture:
+
+1. Trừ phần tiền thuần phải hoàn từ CASH khả dụng của từng người bán và đảo phần
+   phí sàn đã ghi nhận; không làm ví người bán âm.
+2. Phần thiếu chỉ lấy từ WalletRefundReserve đã được cấp tiền thật từ CASH có
+   sẵn trong ví ADMIN. Không có API cộng số dư quỹ tùy ý. Quỹ thiếu trả 409, mọi
+   debit/refund/công nợ rollback, hồ sơ vẫn REQUESTED.
+3. Số quỹ ứng cho người bán được ghi WalletRecoveryDebt nguồn CASH; quyết toán
+   sau tự thu hồi từ khoản người bán sắp được nhận và trả lại quỹ. Có hai giao
+   dịch SETTLEMENT/DEBT_REPAYMENT để lịch sử phản ánh đúng số tiền thực nhận.
+4. Hoàn về CASH/BONUS theo tỷ lệ nguồn gốc và phần còn được hoàn; lần cuối nhận
+   phần dư để tổng hoàn không vượt PAYMENT gốc.
+5. Nếu trước đó có cashback, thu hồi BONUS tương ứng. BONUS đã tiêu tạo công nợ
+   BONUS, tự trừ vào lần thưởng sau, không ép số dư âm. Cashback mặc định vẫn 0.
+
+API quỹ và công nợ:
+
+- GET `/api/admin/wallet-ops/refund-reserve?currency=VND`.
+- POST `/api/admin/wallet-ops/refund-reserve/fund`: header Idempotency-Key và body
+  `{amount,pin,reason}`. ADMIN chuyển CASH của chính mình vào quỹ, có journal/audit.
+- GET `/api/admin/wallet-ops/debts`: danh sách quản trị; tab Công nợ trên dashboard.
+- GET `/api/wallet/debts`: chỉ công nợ của tôi.
+- POST `/api/wallet/debts/repay`: `{amount,pin,reason}` và Idempotency-Key, trả
+  công nợ CASH từ CASH khả dụng. Không được trả quá nợ. Ví còn nợ CASH không rút
+  ra ngân hàng được; lệnh rút cũ chưa gửi cũng bị suspend, có thể hủy để trả nợ.
+  Lệnh đã gửi chỉ được tra cứu kết quả. Vẫn có thể bù trừ nợ từ các lần quyết toán sau.
+
+## Nâng cấp database có dữ liệu
+
+Chưa chạy thay đổi schema/backfill trên database ứng dụng. Trước khi triển khai:
+
+- Tạo bảng cursor, alert, audit, PIN recovery, notifications, refund lines,
+  refund reserves và recovery debts theo entity; thêm các cột retry/security/
+  notificationPublished/refundedAmount/settledAmount và revokedAt/dispatchStartedAt.
+- Bỏ unique cũ chỉ trên wallet_refund_cases.order_id, thay bằng unique
+  (order_id,request_key) và giữ index cho khóa ngoại. Thêm request_key,
+  fingerprint, amount, fee_amount, bonus_recovery_amount cho hồ sơ cũ.
+- Bản cũ chỉ hoàn toàn bộ đơn: đối soát rồi dựng refund lines từ snapshot gốc
+  cho hồ sơ cũ; không tự suy ra từ giá/chủ sản phẩm hiện tại. Nếu thiếu snapshot,
+  xử lý dữ liệu trước khi mở API duyệt. Backfill refundedAmount và settledAmount
+  từ các nghiệp vụ đã hoàn/giải ngân thực tế, không cộng lại tiền.
+- Liên kết cũ có attempts>0 nhưng chưa có dispatchStartedAt được coi là có khả
+  năng đã gửi, không được hủy/release tự động. Ví PIN cũ chưa có recoveryEmail
+  phải đăng ký bằng PIN hiện tại rồi xác minh OTP.
+- Quỹ hoàn khởi tạo 0, không backfill số dư giả. Tiền OPENING của ví cũ vẫn cần
+  đối soát theo tài liệu mô hình; chạy migration trên bản sao trước khi triển khai.
+
+Kiểm thử dùng MySQL riêng, mail capture và gateway test; không gửi email/chuyển
+tiền thật. Chưa cài adapter ngân hàng, SMTP mặc định tắt. Các phần này không nằm
+trong thay đổi kết nối ngân hàng ở chặng 2 chưa được chọn.

@@ -10,11 +10,13 @@ public class WalletOpsSlaWorker {
     private final BankTransferRepository transfers;
     private final WalletRefundCaseRepository refunds;
     private final WalletJournalRepository journals;
+    private final WalletHoldRepository holds;
     private final WalletJobCursorService cursors;
     private final WalletAlertService alerts;
     @Value("${wallet.ops.worker-enabled:true}") private boolean enabled;
     @Value("${wallet.ops.transfer-sla:PT48H}") private Duration transferSla;
     @Value("${wallet.ops.refund-sla:PT48H}") private Duration refundSla;
+    @Value("${wallet.ops.hold-sla:P9D}") private Duration holdSla;
     @Scheduled(fixedDelayString="${wallet.ops.poll-delay-ms:60000}",initialDelayString="${wallet.ops.initial-delay-ms:60000}")
     public void run() {
         if(!enabled)return;
@@ -29,5 +31,9 @@ public class WalletOpsSlaWorker {
             if(ids.isEmpty())break;
         }
         if(journals.countUnbalancedJournals()>0)alerts.record("LEDGER","GLOBAL","Có bút toán không cân bằng, cần kiểm tra");
+        for(int batch=0;batch<10;batch++){
+            var ids=cursors.claim("sla-hold",(after,page)->holds.overdueIds(LocalDateTime.now().minus(holdSla),after,page));
+            ids.forEach(id->alerts.record("HOLD_SLA",id.toString(),"Khoản đang giữ quá thời hạn cần kiểm tra"));if(ids.isEmpty())break;
+        }
     }
 }

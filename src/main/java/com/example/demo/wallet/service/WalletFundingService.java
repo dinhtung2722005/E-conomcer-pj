@@ -37,6 +37,7 @@ public class WalletFundingService {
     private final PlatformTransactionManager transactionManager;
     private final ObjectMapper json;
     private final WalletLedgerService ledger;
+    private final WalletRecoveryDebtRepository debts;
 
     public BankAccountSummaryResponse linkAccount(@NotNull @Valid LinkBankAccountRequest request) {
         Long userId = activeUserId();
@@ -100,6 +101,7 @@ public class WalletFundingService {
                 return withdrawResponse(transfers.findByTransactionOperationId(existing.get().getId()).orElseThrow());
             }
             if (wallet.getStatus() != WalletStatus.ACTIVE) throw new AppException(ErrorCode.WALLET_LOCKED);
+            if(debts.total(wallet.getUserId(),WalletBalanceType.CASH,wallet.getCurrency()).signum()>0)throw new AppException(ErrorCode.WALLET_DEBT_OUTSTANDING);
             if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
                 throw new AppException(ErrorCode.WALLET_INSUFFICIENT_BALANCE);
             }

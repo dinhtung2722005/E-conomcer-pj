@@ -12,6 +12,11 @@ import lombok.RequiredArgsConstructor;
 public class WalletRefundController {
     private final WalletRefundService refunds;
 
+    @PreAuthorize("hasRole('ADMIN')") @PostMapping("/api/admin/orders/{id}/refund")
+    public ApiResponse<RefundCaseResponse> requestAdmin(@PathVariable Long id,@Valid @RequestBody RefundCaseRequest request){
+        return new ApiResponse<>(200,"Đã tạo hồ sơ hoàn ngoại lệ để kiểm tra và duyệt",refunds.requestAdminRefund(id,request));
+    }
+
     @PreAuthorize("isAuthenticated()") @PostMapping("/api/orders/{id}/refund")
     public ApiResponse<RefundCaseResponse> request(@PathVariable Long id, @Valid @RequestBody RefundCaseRequest request) {
         return new ApiResponse<>(200, "Đã tiếp nhận yêu cầu hoàn hàng", refunds.requestRefund(id, request));

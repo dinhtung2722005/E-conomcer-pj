@@ -31,6 +31,7 @@ public class WalletBankWorker {
     private final WalletJobCursorService cursors;
     private final WalletAlertService alerts;
     private final WalletSecurityRepository security;
+    private final WalletRecoveryDebtRepository debts;
     private final com.example.demo.user.repository.UserRepository users;
 
     public WalletBankWorker(BankTransferRepository transfers, WalletRepository wallets,
@@ -40,6 +41,7 @@ public class WalletBankWorker {
             com.example.demo.user.repository.UserRepository users,
             WalletJobCursorService cursors, WalletAlertService alerts,
             WalletSecurityRepository security,
+            WalletRecoveryDebtRepository debts,
             @Value("${wallet.bank.worker-enabled:true}") boolean enabled) {
         this.transfers = transfers;
         this.wallets = wallets;
@@ -52,6 +54,7 @@ public class WalletBankWorker {
         this.users = users;
         this.cursors=cursors; this.alerts=alerts;
         this.security=security;
+        this.debts=debts;
         this.database = new TransactionTemplate(transactionManager);
         this.database.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -107,6 +110,7 @@ public class WalletBankWorker {
         boolean blocked = transaction.getType() == TransactionType.WITHDRAW
                 && (wallet.getStatus() != WalletStatus.ACTIVE || user == null || !user.isActive()
                     || transfer.getBankAccount().getRevokedAt()!=null
+                    || !debts.outstanding(wallet.getUserId(),WalletBalanceType.CASH,wallet.getCurrency()).isEmpty()
                     || pin!=null&&pin.getWithdrawalBlockedUntil()!=null&&pin.getWithdrawalBlockedUntil().isAfter(now));
         if (blocked && transfer.getDispatchStartedAt() == null && transfer.getAttempts() == 0) {
             transfer.setSuspended(true); transfer.setLastError("WALLET_SUSPENDED");

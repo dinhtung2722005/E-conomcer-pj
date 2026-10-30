@@ -93,6 +93,8 @@ public enum ErrorCode {
     WALLET_BANK_ACCOUNT_REVOKED(409,"Liên kết ngân hàng đã được thu hồi"),
     WALLET_TRANSFER_ALREADY_DISPATCHED(409,"Không thể hủy yêu cầu rút đã bắt đầu gửi ngân hàng"),
     WALLET_NOTIFICATION_NOT_FOUND(404,"Không tìm thấy thông báo"),
+    WALLET_DEBT_OUTSTANDING(409,"Ví còn công nợ hoàn tiền cần thanh toán trước khi rút"),
+    WALLET_REFUND_RESERVE_INSUFFICIENT(409,"Quỹ hoàn tiền chưa đủ; hồ sơ vẫn chờ xử lý"),
 
     // ===== Voucher =====
     VOUCHER_NOT_FOUND(404, "Mã giảm giá không tồn tại"),

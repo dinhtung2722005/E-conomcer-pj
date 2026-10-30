@@ -88,6 +88,7 @@ class WalletSafetyIntegrationTests {
     @Autowired WalletAlertService alerts;
     @Autowired WalletSettlementRetryService retries;
     @Autowired AdminUserService adminUsers;
+    @Autowired com.example.demo.user.service.SessionRevocationService sessions;
     @Autowired ProbeBank bank;
     @Autowired PasswordEncoder encoder;
     @Autowired PlatformTransactionManager manager;
@@ -165,6 +166,12 @@ class WalletSafetyIntegrationTests {
         assertEquals(WalletStatus.LOCKED, wallets.findById(walletId).orElseThrow().getStatus());
         assertEquals(WalletHoldStatus.ACTIVE, holds.findById(result.getHoldId()).orElseThrow().getStatus());
         assertTrue(transfers.findById(transfer.getId()).orElseThrow().isSuspended());
+    }
+    @Test void revokedSessionAfterPinAuthorizationStopsDebitEvenWhenUserRemainsActive() {
+        Order order=orderWithoutSeller();WalletPinService target=org.springframework.test.util.AopTestUtils.getUltimateTargetObject(pins);
+        doAnswer(invocation->{Object auth=invocation.callRealMethod();sessions.revokeAllSessions(buyer.getId());return auth;}).when(target).authorize(anyString(),anyString());
+        var error=assertThrows(com.example.demo.user.exception.AppException.class,()->payments.payOrder(order.getId(),payRequest(),"revoked-session"));
+        assertEquals(com.example.demo.user.exception.ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED,error.getErrorCode());assertEquals(0,new BigDecimal("100").compareTo(wallets.findById(walletId).orElseThrow().getBalance()));
     }
 
     @Test void ledgerRejectsRoundingBeforePersistingAnyJournal() {

@@ -19,6 +19,8 @@ import com.example.demo.wallet.entity.WalletHoldType;
 import jakarta.persistence.LockModeType;
 
 public interface WalletHoldRepository extends JpaRepository<WalletHold, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<WalletHold> {
+    @Query("select h.id from WalletHold h where h.amount>h.capturedAmount+h.releasedAmount and h.createdAt<:cutoff and h.id>:after order by h.id")
+    List<Long> overdueIds(java.time.LocalDateTime cutoff,Long after,Pageable page);
     @Query("select coalesce(sum(h.amount - h.capturedAmount - h.releasedAmount), 0) from WalletHold h "
             + "where h.wallet.id = :walletId and h.balanceType = :type")
     java.math.BigDecimal sumRemaining(Long walletId, WalletBalanceType type);

@@ -202,6 +202,9 @@ Các phần sau đã có entity/DTO nhưng **chưa có nghiệp vụ** — cần
   DTO đầu vào/response cho nạp/rút, thanh toán, hoàn tiền và PIN đã được chuẩn bị theo kế hoạch.
   Xem [mô hình ví và yêu cầu migration](docs/wallet-model.md) trước khi triển khai
   database có dữ liệu, và [chính sách quyết toán/vận hành](docs/wallet-operations.md).
+  [Các bổ sung sau rà soát](docs/wallet-improvements.md) mô tả dashboard
+  `/wallet-ops.html`, khôi phục PIN email, quản lý ngân hàng, thông báo và hoàn
+  một phần/công nợ sau quyết toán. SMTP cần cấu hình trước khi gửi mã thật.
 - Khôi phục mật khẩu qua OTP — `OtpCode`, `OtpCodeRepository` và `EmailService` (file đang comment toàn bộ) chưa được nối vào luồng nào.
 - Xác minh email khi đăng ký.
 - Thanh toán trực tuyến: đơn chỉ chuyển `PENDING → PAID` thủ công qua API admin, chưa có cổng thanh toán.

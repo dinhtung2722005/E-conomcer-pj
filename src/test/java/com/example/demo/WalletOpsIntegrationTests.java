@@ -36,7 +36,7 @@ class WalletOpsIntegrationTests {
     @Test void allDashboardListsEnforceAdminAndPagination()throws Exception {
         var shell=http("/wallet-ops.html",null,null); assertEquals(200,shell.statusCode()); assertTrue(shell.body().contains("Vận hành ví"));
         String admin=jwt.generateToken(user(UserRole.ADMIN)),customer=jwt.generateToken(user(UserRole.CUSTOMER));
-        for(String name:List.of("summary","transfers","holds","refunds","settlements","alerts","audit")) {
+        for(String name:List.of("summary","transfers","holds","refunds","settlements","alerts","audit","debts")) {
             String path="/api/admin/wallet-ops/"+name;
             assertEquals(401,http(path,null,null).statusCode()); assertEquals(403,http(path,customer,null).statusCode());
             var response=http(path,admin,null); assertEquals(200,response.statusCode(),response.body());

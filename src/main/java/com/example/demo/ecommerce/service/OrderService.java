@@ -68,17 +68,13 @@ public class OrderService {
         return orderMapper.toResponse(orderRepository.save(order));
     }
 
-    /** Internal only: return approval already holds the order lock and verifies the review case. */
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
-    public void refundReturnedOrder(Order order) {
-        if (order.getStatus() != OrderStatus.COMPLETED || order.getSettledAt() != null) {
-            throw new AppException(ErrorCode.ORDER_STATUS_INVALID);
+    /** WalletReturnService already checked the case and holds the order lock in this transaction. */
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void applyApprovedReturn(Order order,java.util.List<com.example.demo.wallet.entity.WalletRefundLine> lines,boolean fullyReturned) {
+        for(var line:lines.stream().sorted(Comparator.comparing(l->l.getItem().getProduct().getId())).toList()) {
+            inventoryService.restock(line.getItem().getProduct().getId(),line.getQuantity());
         }
-        walletFunds.refundReturn(order);
-        restock(order);
-        refundVoucher(order);
-        order.setStatus(OrderStatus.REFUNDED);
-        orderRepository.saveAndFlush(order);
+        if(fullyReturned){refundVoucher(order);order.setStatus(OrderStatus.REFUNDED);}
     }
 
     @Transactional(readOnly = true)

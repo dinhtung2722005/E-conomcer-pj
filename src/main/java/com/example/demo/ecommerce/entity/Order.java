@@ -51,6 +51,10 @@ public class Order {
     private LocalDateTime completedAt;
     private LocalDateTime settlementAvailableAt;
     private LocalDateTime settledAt;
+    @Column(nullable=false,precision=19,scale=4) @org.hibernate.annotations.ColumnDefault("0") @Builder.Default
+    private BigDecimal refundedAmount=BigDecimal.ZERO;
+    @Column(nullable=false,precision=19,scale=4) @org.hibernate.annotations.ColumnDefault("0") @Builder.Default
+    private BigDecimal settledAmount=BigDecimal.ZERO;
     private LocalDateTime settlementNextAttemptAt;
     @Column(nullable=false) @org.hibernate.annotations.ColumnDefault("0")
     private int settlementAttempts;

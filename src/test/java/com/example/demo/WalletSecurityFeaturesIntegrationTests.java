@@ -39,6 +39,7 @@ class WalletSecurityFeaturesIntegrationTests {
     @Autowired WalletFundingService funding; @Autowired WalletBankManagementService banks; @Autowired WalletBankWorker worker;
     @Autowired BankTransferRepository transfers; @Autowired WalletNotificationService notifications;
     @Autowired WalletNotificationRepository notificationRows; @Autowired PlatformTransactionManager manager; @Autowired ObjectMapper json;
+    @Autowired jakarta.persistence.EntityManager entities;
     private User owner;private Long walletId;
     @BeforeEach void setup(){
         String n="security_"+UUID.randomUUID().toString().replace("-","");owner=users.saveAndFlush(User.builder().username(n).email(n+"@example.test").password(encoder.encode("password123")).role(UserRole.CUSTOMER).build());
@@ -69,6 +70,15 @@ class WalletSecurityFeaturesIntegrationTests {
     @Test void failedDeliveryInvalidatesChallengeAndDoesNotExposeProviderFailure(){
         mail.fail=true;error(ErrorCode.WALLET_RECOVERY_UNAVAILABLE,()->recovery.requestReset());
         assertNotNull(challenges.findFirstByWalletIdOrderByCreatedAtDesc(walletId).orElseThrow().getConsumedAt());
+    }
+    @Test void expiredCodeCannotResetPin(){
+        var start=recovery.requestReset();new TransactionTemplate(manager).executeWithoutResult(tx->entities.createQuery("update WalletPinRecovery c set c.expiresAt=:time where c.id=:id").setParameter("time",LocalDateTime.now().minusMinutes(1)).setParameter("id",start.challengeId()).executeUpdate());
+        error(ErrorCode.WALLET_RECOVERY_INVALID,()->recovery.resetPin(new WalletRecoveryDtos.Confirm(start.challengeId(),mail.code,"654321","654321")));assertTrue(encoder.matches("123456",security.findById(walletId).orElseThrow().getPinHash()));
+    }
+    @Test void changingProtectedRecoveryEmailRequiresPinAndOtp(){
+        String updated="verified-"+UUID.randomUUID()+"@example.test";owner.setEmail(updated);users.saveAndFlush(owner);
+        var start=recovery.requestRecoveryEmail(new WalletRecoveryDtos.Enroll("123456"));assertEquals(updated,mail.to);assertNotEquals(updated,security.findById(walletId).orElseThrow().getRecoveryEmail());
+        recovery.confirmRecoveryEmail(new WalletRecoveryDtos.EmailConfirm(start.challengeId(),mail.code));assertEquals(updated,security.findById(walletId).orElseThrow().getRecoveryEmail());
     }
     @Test void cancelledUnsentWithdrawalReleasesOnceEvenWhileWalletFrozen(){
         var result=funding.withdraw(withdraw(account()),"cancel");var freeze=new WalletFreezeRequest();freeze.setReason("Lost device");walletService.freezeMyWallet(freeze);

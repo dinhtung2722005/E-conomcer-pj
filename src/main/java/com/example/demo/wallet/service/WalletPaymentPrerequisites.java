@@ -21,6 +21,7 @@ public class WalletPaymentPrerequisites {
                     || item.getPlatformFee().signum() < 0 || item.getPlatformFee().compareTo(amount) > 0) fail();
             if (amount.signum() == 0) continue;
             if (item.getSellerId() == null) fail();
+            if(item.getSellerId().equals(order.getUserId()))fail();
             sellerIds.add(item.getSellerId()); allocated = allocated.add(amount);
         }
         if (order.getFinalAmount() == null || allocated.compareTo(order.getFinalAmount()) != 0) fail();

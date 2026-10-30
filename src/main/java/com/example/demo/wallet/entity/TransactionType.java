@@ -7,5 +7,7 @@ public enum TransactionType {
     REFUND,
     CASHBACK,
     SETTLEMENT,
-    CASHBACK_REVERSAL
+    CASHBACK_REVERSAL,
+    RESERVE_FUNDING,
+    DEBT_REPAYMENT
 }

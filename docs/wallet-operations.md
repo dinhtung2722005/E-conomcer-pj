@@ -16,8 +16,9 @@ Các service:
 | WalletOperationService | Khóa yêu cầu và fingerprint cho retry |
 | WalletFundingService / WalletBankWorker | Xác minh tài khoản qua gateway, nạp/rút và outbox |
 | WalletPaymentService | Khóa đơn/ví, giữ CASH/BONUS, xác nhận kho, PAID |
-| WalletOrderFundsService | Hoàn đúng nguồn, liên kết PAYMENT gốc, chống hoàn quá tiền |
-| WalletRefundService | Hồ sơ hoàn toàn bộ đơn, quyền chủ đơn và duyệt ADMIN |
+| WalletOrderFundsService | Hoàn khi hủy trước giao, liên kết PAYMENT gốc, chống hoàn quá tiền |
+| WalletRefundService / WalletReturnService | Hoàn theo dòng/số lượng, quyền chủ đơn, ngoại lệ và duyệt ADMIN |
+| WalletDebtService / WalletReserveService | Quỹ hoàn từ CASH, công nợ và thu hồi sau quyết toán |
 | WalletSettlementPolicy / WalletSettlementService | Snapshot, chia tiền người bán/phí, capture và cashback |
 | WalletLedgerService | Sổ đối ứng cân bằng, ghi cùng transaction thay đổi số dư |
 | WalletReconciliationService | So số dư với journal và pending với hold, không tự sửa tiền |
@@ -35,7 +36,7 @@ Các service:
 | `wallet.reconciliation.poll-delay-ms` | 3600000 |
 
 Phí/cashback chấp nhận 0–100, tối đa 4 chữ số thập phân. Policy được lưu trên đơn
-tại checkout, thay cấu hình không sửa đơn đã đặt. Cashback tính từ finalAmount,
+tại checkout, thay cấu hình không sửa đơn đã đặt. Cashback tính từ phần tiền còn lại sau hoàn,
 làm tròn xuống 4 chữ số, chỉ cộng BONUS một lần khi quyết toán; nguồn đối ứng là
 `platform:PROMOTIONS`. Cần cấp ngân sách thực cho chương trình trước khi bật.
 
@@ -58,21 +59,25 @@ ví; đăng ký mới tự tạo, tài khoản cũ dùng POST /api/wallet trư�
 2. Chủ đơn gọi POST `/api/orders/{id}/confirm-receipt` (hoặc admin chuyển COMPLETED).
    Hệ thống lưu completedAt và settlementAvailableAt = completedAt + 7 ngày theo
    snapshot. Đơn COMPLETED vẫn giữ tiền trong thời hạn này.
-3. Chủ đơn có thể POST `/api/orders/{id}/refund` với `{ "reason": "..." }` trước
-   settlementAvailableAt, và GET cùng đường dẫn để xem hồ sơ. Mỗi đơn một hồ sơ;
-   retry cùng lý do trả hồ sơ hiện có, không tạo thêm.
+3. Chủ đơn có thể POST `/api/orders/{id}/refund` với reason, requestKey và items
+   trước settlementAvailableAt; GET cùng đường dẫn xem hồ sơ mới nhất. Bỏ items
+   để yêu cầu hoàn toàn bộ phần còn lại. Chỉ một hồ sơ REQUESTED trên mỗi đơn;
+   retry cùng requestKey/payload trả lại hồ sơ cũ.
 4. ADMIN POST `/api/admin/orders/{id}/refund/decision` với
-   `{ "approved": true, "reason": "Đã kiểm tra hàng trả" }` để duyệt sau khi kiểm
-   tra hàng. Duyệt hoàn toàn bộ CASH/BONUS, trả kho/voucher, chuyển REFUNDED. Từ
+   `{ "caseId": 123, "approved": true, "reason": "Đã kiểm tra hàng trả" }` để duyệt sau khi kiểm
+   tra hàng. Duyệt trả đúng CASH/BONUS và số lượng đã chọn; hoàn hết mới trả voucher và chuyển REFUNDED. Từ
    chối dùng approved=false. Lưu người duyệt, lý do và thời điểm; không ghi đè
    quyết định đã chốt bằng một request khác.
-5. Worker chỉ quyết toán COMPLETED đã đủ hạn và không có hồ sơ REQUESTED/APPROVED.
-   REQUESTED giữ tiền kể cả đã quá hạn để chờ xử lý; REJECTED cho phép quyết toán.
+5. Worker quyết toán phần còn lại của đơn COMPLETED đã đủ hạn và không có hồ sơ REQUESTED.
+   REQUESTED giữ tiền kể cả đã quá hạn để chờ xử lý; hồ sơ đã duyệt một phần hoặc REJECTED cho phép quyết toán.
 
-Chưa hỗ trợ hoàn một phần hoặc hoàn sau giải ngân, cũng chưa có API thu hồi BONUS
-đã tiêu. Những luồng này cần nguồn bù và chính sách công nợ riêng; không release
-lại hold đã capture hay ép số dư âm. Sinh trắc học/khôi phục PIN chờ cơ chế xác
-minh bổ sung; không có cờ từ frontend để bỏ qua PIN.
+Đã bổ sung hoàn một phần theo dòng/số lượng, hồ sơ ngoại lệ ADMIN sau giải ngân,
+quỹ hoàn được cấp từ CASH và công nợ CASH/BONUS. Một đơn có nhiều hồ sơ đã xử lý,
+chỉ một hồ sơ REQUESTED; duyệt phải chỉ rõ caseId nếu có nhiều hồ sơ. Quyết toán
+chỉ xử lý phần chưa hoàn. Không release lại hold đã capture hoặc ép ví âm.
+Đã có khôi phục PIN qua email bảo vệ, thu hồi ngân hàng và thông báo trong ứng
+dụng; xem [các bổ sung sau rà soát](wallet-improvements.md) để biết API, cấu hình,
+điều kiện nguồn tiền và yêu cầu migration. Sinh trắc học vẫn chưa được triển khai.
 
 ## Ghi sổ và đối soát
 
