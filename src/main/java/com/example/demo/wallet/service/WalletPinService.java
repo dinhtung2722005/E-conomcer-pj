@@ -23,6 +23,8 @@ import com.example.demo.wallet.dto.SetupPinRequest;
 import com.example.demo.wallet.dto.WalletSecurityResponse;
 import com.example.demo.wallet.entity.Wallet;
 import com.example.demo.wallet.entity.WalletSecurity;
+import com.example.demo.wallet.entity.WalletSecurityEvent.Action;
+import com.example.demo.wallet.entity.WalletSecurityEvent.Outcome;
 import com.example.demo.wallet.mapper.WalletMapper;
 import com.example.demo.wallet.repository.WalletRepository;
 import com.example.demo.wallet.repository.WalletSecurityRepository;
@@ -44,10 +46,11 @@ public class WalletPinService {
     private final TransactionTemplate transaction;
     private final int maxAttempts;
     private final Duration lockDuration;
+    private final WalletSecurityEventService events;
 
     public WalletPinService(UserRepository users, WalletRepository wallets, WalletSecurityRepository security,
             CurrentUserService currentUser, PasswordEncoder encoder, WalletMapper mapper,
-            PlatformTransactionManager transactionManager,
+            PlatformTransactionManager transactionManager, WalletSecurityEventService events,
             @Value("${wallet.pin.max-attempts:5}") int maxAttempts,
             @Value("${wallet.pin.lock-duration:PT15M}") Duration lockDuration) {
         if (maxAttempts < 1 || lockDuration.isNegative() || lockDuration.isZero()) {
@@ -61,6 +64,7 @@ public class WalletPinService {
         this.mapper = mapper;
         this.maxAttempts = maxAttempts;
         this.lockDuration = lockDuration;
+        this.events = events;
         this.transaction = new TransactionTemplate(transactionManager);
         this.transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -76,7 +80,7 @@ public class WalletPinService {
     }
 
     public WalletSecurityResponse setupPin(@NotNull @Valid SetupPinRequest request) {
-        return withSecurity(context -> {
+        return withSecurity(Action.PIN_SETUP, context -> {
             WalletSecurity row = context.security();
             if (row.getPinHash() != null) return Result.failure(ErrorCode.WALLET_PIN_ALREADY_CONFIGURED);
             if (isLocked(row)) return Result.failure(ErrorCode.WALLET_PIN_LOCKED);
@@ -90,7 +94,7 @@ public class WalletPinService {
     }
 
     public WalletSecurityResponse changePin(@NotNull @Valid ChangePinRequest request) {
-        return withSecurity(context -> {
+        return withSecurity(Action.PIN_CHANGE, context -> {
             WalletSecurity row = context.security();
             ErrorCode error = checkPin(row, request.getCurrentPin());
             if (error != null) return Result.failure(error);
@@ -105,7 +109,7 @@ public class WalletPinService {
     /** Server-only authorization. Never expose this object as a client supplied token or boolean. */
     public Authorization authorize(@NotNull @Pattern(regexp = "[0-9]{6}") String pin,
             @NotNull String operation) {
-        return withSecurity(context -> {
+        return withSecurity(Action.PIN_VERIFY, context -> {
             WalletSecurity row = context.security();
             ErrorCode error = checkPin(row, pin);
             if (error != null) return Result.failure(error);
@@ -198,9 +202,11 @@ public class WalletPinService {
         row.setPinLockedUntil(null);
     }
 
-    private <T> T withSecurity(Function<Context, Result<T>> action) {
+    private <T> T withSecurity(Action event, Function<Context, Result<T>> action) {
         Long userId = currentUser.getCurrentUserId();
-        Result<T> result = transaction.execute(status -> {
+        Result<T> result;
+        try {
+            result = transaction.execute(status -> {
             User user = users.findByIdForUpdate(userId)
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
@@ -211,8 +217,19 @@ public class WalletPinService {
                     .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
             WalletSecurity row = security.findByWalletIdForUpdate(wallet.getId())
                     .orElseGet(() -> security.saveAndFlush(WalletSecurity.builder().wallet(wallet).build()));
-            return action.apply(new Context(user, wallet, row));
-        });
+            boolean previouslyLocked = row.getPinLockedUntil() != null && row.getPinLockedUntil().isAfter(LocalDateTime.now());
+            Result<T> outcome = action.apply(new Context(user, wallet, row));
+            events.record(userId, wallet.getId(), event, outcome.error() == null ? Outcome.SUCCESS : Outcome.REJECTED,
+                    outcome.error() == null ? "OK" : outcome.error().name(), null);
+            if (!previouslyLocked && outcome.error() == ErrorCode.WALLET_PIN_LOCKED) {
+                events.record(userId, wallet.getId(), Action.PIN_LOCKED, Outcome.REJECTED, "ATTEMPT_LIMIT", null);
+            }
+            return outcome;
+            });
+        } catch (AppException exception) {
+            events.rejection(userId, null, event, exception.getErrorCode().name(), null);
+            throw exception;
+        }
         // Throw only after commit: rejecting a PIN must never roll back its failed-attempt counter.
         if (result.error() != null) throw new AppException(result.error());
         return result.value();

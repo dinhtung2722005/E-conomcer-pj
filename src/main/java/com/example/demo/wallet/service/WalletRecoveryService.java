@@ -16,6 +16,8 @@ import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.service.*;
 import com.example.demo.wallet.dto.WalletRecoveryDtos.*;
 import com.example.demo.wallet.entity.*;
+import com.example.demo.wallet.entity.WalletSecurityEvent.Action;
+import com.example.demo.wallet.entity.WalletSecurityEvent.Outcome;
 import com.example.demo.wallet.repository.*;
 import com.example.demo.wallet.gateway.WalletRecoveryDelivery;
 import jakarta.validation.Valid;
@@ -28,16 +30,18 @@ public class WalletRecoveryService {
     private final PasswordEncoder encoder; private final ObjectProvider<WalletRecoveryDelivery> delivery;
     private final WalletPinService pins; private final SessionRevocationService sessions;
     private final WalletNotificationService notifications;
+    private final WalletSecurityEventService events;
     private final TransactionTemplate database; private final Duration withdrawalCooldown;
     private final SecureRandom random=new SecureRandom();
     public WalletRecoveryService(UserRepository users,WalletRepository wallets,WalletSecurityRepository security,
             WalletPinRecoveryRepository challenges,CurrentUserService currentUser,PasswordEncoder encoder,
             ObjectProvider<WalletRecoveryDelivery> delivery,WalletPinService pins,SessionRevocationService sessions,
-            WalletNotificationService notifications,
+            WalletNotificationService notifications, WalletSecurityEventService events,
             PlatformTransactionManager manager,@Value("${wallet.recovery.withdrawal-cooldown:PT24H}") Duration withdrawalCooldown) {
         this.users=users;this.wallets=wallets;this.security=security;this.challenges=challenges;this.currentUser=currentUser;
         this.encoder=encoder;this.delivery=delivery;this.pins=pins;this.sessions=sessions;this.withdrawalCooldown=withdrawalCooldown;
         this.notifications=notifications;
+        this.events=events;
         database=new TransactionTemplate(manager);database.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         if(withdrawalCooldown.isNegative())throw new IllegalArgumentException("Invalid withdrawal cooldown");
     }
@@ -47,6 +51,14 @@ public class WalletRecoveryService {
         return start(WalletPinRecovery.Purpose.RECOVERY_EMAIL,auth);
     }
     private Start start(WalletPinRecovery.Purpose purpose,WalletPinService.Authorization auth){
+        try {
+            return startAttempt(purpose,auth);
+        } catch(AppException exception) {
+            events.rejection(currentUser.getCurrentUserId(),null,purpose==WalletPinRecovery.Purpose.RESET_PIN?Action.PIN_RESET_REQUEST:Action.RECOVERY_EMAIL_REQUEST,exception.getErrorCode().name(),null);
+            throw exception;
+        }
+    }
+    private Start startAttempt(WalletPinRecovery.Purpose purpose,WalletPinService.Authorization auth){
         var sender=delivery.getIfAvailable();if(sender==null)throw new AppException(ErrorCode.WALLET_RECOVERY_UNAVAILABLE);
         String code=String.format(java.util.Locale.ROOT,"%08d",random.nextInt(100000000));
         Pending pending=database.execute(tx->{
@@ -61,23 +73,40 @@ public class WalletRecoveryService {
             challenges.invalidate(wallet.getId(),now);security.flush();
             var challenge=challenges.saveAndFlush(WalletPinRecovery.builder().id(UUID.randomUUID().toString()).wallet(wallet).purpose(purpose)
                 .email(email).codeHash(encoder.encode(code)).securityVersion(row.getVersion()).tokenVersion(user.getTokenVersion()).createdAt(now).expiresAt(now.plusMinutes(10)).build());
+            events.record(user.getId(),wallet.getId(),purpose==WalletPinRecovery.Purpose.RESET_PIN?Action.PIN_RESET_REQUEST:Action.RECOVERY_EMAIL_REQUEST,Outcome.SUCCESS,"CHALLENGE_CREATED",challenge.getId());
             return new Pending(challenge.getId(),wallet.getId(),email,challenge.getExpiresAt());
         });
         try{sender.send(pending.email(),code,pending.expires());}
-        catch(RuntimeException ex){database.executeWithoutResult(tx->challenges.lock(pending.id(),pending.walletId()).ifPresent(c->c.setConsumedAt(LocalDateTime.now())));throw new AppException(ErrorCode.WALLET_RECOVERY_UNAVAILABLE);}
-        database.executeWithoutResult(tx->challenges.lock(pending.id(),pending.walletId()).ifPresent(c->c.setDeliveredAt(LocalDateTime.now())));
+        catch(RuntimeException ex){database.executeWithoutResult(tx->{
+            challenges.lock(pending.id(),pending.walletId()).ifPresent(c->c.setConsumedAt(LocalDateTime.now()));
+            events.record(currentUser.getCurrentUserId(),pending.walletId(),Action.RECOVERY_DELIVERY,Outcome.REJECTED,"DELIVERY_UNAVAILABLE",pending.id());
+        });throw new AppException(ErrorCode.WALLET_RECOVERY_UNAVAILABLE);}
+        database.executeWithoutResult(tx->{
+            challenges.lock(pending.id(),pending.walletId()).ifPresent(c->c.setDeliveredAt(LocalDateTime.now()));
+            events.record(currentUser.getCurrentUserId(),pending.walletId(),Action.RECOVERY_DELIVERY,Outcome.SUCCESS,"DELIVERED",pending.id());
+        });
         return new Start(pending.id(),mask(pending.email()),pending.expires());
     }
     public void resetPin(@NotNull @Valid Confirm request){confirm(request.challengeId(),request.code(),request.newPin(),WalletPinRecovery.Purpose.RESET_PIN);}
     public void confirmRecoveryEmail(@NotNull @Valid EmailConfirm request){confirm(request.challengeId(),request.code(),null,WalletPinRecovery.Purpose.RECOVERY_EMAIL);}
     private void confirm(String id,String code,String newPin,WalletPinRecovery.Purpose purpose){
-        ErrorCode error=database.execute(tx->{
+        Action action=purpose==WalletPinRecovery.Purpose.RESET_PIN?Action.PIN_RESET:Action.RECOVERY_EMAIL_CHANGE;
+        ErrorCode error;
+        try {
+            error=database.execute(tx->{
             User user=lockUser();var wallet=wallets.findByUserIdForUpdate(user.getId()).orElseThrow(()->new AppException(ErrorCode.WALLET_NOT_FOUND));
             var row=security.findByWalletIdForUpdate(wallet.getId()).orElseThrow(()->new AppException(ErrorCode.WALLET_PIN_NOT_CONFIGURED));
             var c=challenges.lock(id,wallet.getId()).orElse(null);LocalDateTime now=LocalDateTime.now();
             if(c==null||c.getPurpose()!=purpose||c.getConsumedAt()!=null||c.getDeliveredAt()==null||!c.getExpiresAt().isAfter(now)
-                ||c.getTokenVersion()!=user.getTokenVersion()||!c.getSecurityVersion().equals(row.getVersion()))return ErrorCode.WALLET_RECOVERY_INVALID;
-            if(!encoder.matches(code,c.getCodeHash())){c.setFailedAttempts(c.getFailedAttempts()+1);if(c.getFailedAttempts()>=5)c.setConsumedAt(now);return ErrorCode.WALLET_RECOVERY_INVALID;}
+                ||c.getTokenVersion()!=user.getTokenVersion()||!c.getSecurityVersion().equals(row.getVersion())){
+                events.record(user.getId(),wallet.getId(),action,Outcome.REJECTED,"INVALID_CHALLENGE",id);
+                return ErrorCode.WALLET_RECOVERY_INVALID;
+            }
+            if(!encoder.matches(code,c.getCodeHash())){
+                c.setFailedAttempts(c.getFailedAttempts()+1);if(c.getFailedAttempts()>=5)c.setConsumedAt(now);
+                events.record(user.getId(),wallet.getId(),action,Outcome.REJECTED,c.getFailedAttempts()>=5?"ATTEMPT_LIMIT":"INCORRECT_CODE",id);
+                return ErrorCode.WALLET_RECOVERY_INVALID;
+            }
             c.setConsumedAt(now);
             if(purpose==WalletPinRecovery.Purpose.RECOVERY_EMAIL)row.setRecoveryEmail(c.getEmail());
             else{
@@ -85,8 +114,13 @@ public class WalletRecoveryService {
                 row.setWithdrawalBlockedUntil(now.plus(withdrawalCooldown));sessions.revokeAllSessions(user.getId());
             }
             notifications.publish(wallet,"security:"+id,"Thay đổi bảo mật ví",purpose==WalletPinRecovery.Purpose.RESET_PIN?"PIN đã được khôi phục. Các phiên cũ đã bị thu hồi và rút tiền được tạm chặn.":"Email khôi phục ví đã được xác minh.",null);
+            events.record(user.getId(),wallet.getId(),action,Outcome.SUCCESS,"OK",id);
             return null;
-        });
+            });
+        } catch(AppException exception) {
+            events.rejection(currentUser.getCurrentUserId(),null,action,exception.getErrorCode().name(),id);
+            throw exception;
+        }
         if(error!=null)throw new AppException(error);
     }
     private User lockUser(){

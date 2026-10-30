@@ -24,6 +24,7 @@ public class WalletOpsService {
     private final OrderRepository orders;
     private final WalletAlertRepository alerts;
     private final WalletOpsAuditRepository audit;
+    private final WalletSecurityEventRepository securityEvents;
     private final WalletJournalRepository journals;
     @Value("${wallet.ops.transfer-sla:PT48H}") private Duration transferSla;
     @Value("${wallet.ops.refund-sla:PT48H}") private Duration refundSla;
@@ -53,8 +54,27 @@ public class WalletOpsService {
     @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Alert> alerts(@Valid @NotNull PageQuery page,WalletAlert.Status status) {
         access.requireAdmin(); return PageResponse.from(alerts.findAll((r,q,b)->status==null?b.conjunction():b.equal(r.get("status"),status),page.toPageable()).map(this::alert));
     }
-    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Audit> audit(@Valid @NotNull PageQuery page) {
-        access.requireAdmin(); return PageResponse.from(audit.findAll(page.toPageable()).map(a->new WalletOpsDtos.Audit(a.getId(),a.getActorId(),a.getAction(),a.getReference(),a.getReason(),a.getCreatedAt())));
+    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Audit> audit(@Valid @NotNull WalletAuditQuery query) {
+        access.requireAdmin();
+        return PageResponse.from(audit.findAll(auditFilter(query),query.toPageable()).map(a->new WalletOpsDtos.Audit(a.getId(),a.getActorId(),a.getWalletId(),a.getAction(),a.getReference(),a.getReason(),a.getRequestId(),a.getCreatedAt())));
+    }
+    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.SecurityEvent> securityEvents(@Valid @NotNull WalletAuditQuery query) {
+        access.requireAdmin();
+        return PageResponse.from(securityEvents.findAll(auditFilter(query),query.toPageable()).map(a->new WalletOpsDtos.SecurityEvent(a.getId(),a.getActorId(),a.getWalletId(),a.getAction().name(),a.getOutcome().name(),a.getCode(),a.getReference(),a.getRequestId(),a.getCreatedAt())));
+    }
+    private <T> org.springframework.data.jpa.domain.Specification<T> auditFilter(WalletAuditQuery query) {
+        return (root,q,b)->{
+            var filters=new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if(query.getActorId()!=null)filters.add(b.equal(root.get("actorId"),query.getActorId()));
+            if(query.getWalletId()!=null)filters.add(b.equal(root.get("walletId"),query.getWalletId()));
+            if(query.getAction()!=null)filters.add(b.equal(root.get("action").as(String.class),query.getAction()));
+            if(query.getReference()!=null)filters.add(b.equal(root.get("reference"),query.getReference()));
+            if(query.getRequestId()!=null)filters.add(b.equal(root.get("requestId"),query.getRequestId()));
+            if(query.getFrom()!=null)filters.add(b.greaterThanOrEqualTo(root.get("createdAt"),query.getFrom()));
+            if(query.getTo()!=null)filters.add(b.lessThan(root.get("createdAt"),query.getTo()));
+            if(root.getJavaType()==WalletSecurityEvent.class&&query.getOutcome()!=null)filters.add(b.equal(root.get("outcome").as(String.class),query.getOutcome()));
+            return b.and(filters.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
     @Transactional public WalletOpsDtos.Alert review(@Positive Long id,@Valid @NotNull WalletAlertReviewRequest request) {
         var actor=access.requireAdmin(); var a=alerts.findById(id).orElseThrow(()->new AppException(ErrorCode.ENDPOINT_NOT_FOUND));
@@ -66,7 +86,7 @@ public class WalletOpsService {
         var actor=access.requireAdmin(); var transfer=transfers.findByIdForUpdate(id).orElseThrow(()->new AppException(ErrorCode.WALLET_TRANSACTION_NOT_FOUND));
         if(transfer.isFinished() || transfer.getLeaseUntil()!=null&&transfer.getLeaseUntil().isAfter(LocalDateTime.now())) throw new AppException(ErrorCode.DATA_CONFLICT);
         transfer.setNextAttemptAt(LocalDateTime.now());
-        audit.saveAndFlush(WalletOpsAudit.builder().actorId(actor.getId()).action("BANK_RETRY").reference(id.toString()).reason(request.getReason().strip()).build());
+        audit.saveAndFlush(WalletOpsAudit.builder().actorId(actor.getId()).walletId(transfer.getTransaction().getWallet().getId()).action("BANK_RETRY").reference(id.toString()).reason(request.getReason().strip()).build());
     }
     @Transactional public void retrySettlement(@Positive Long id,@Valid @NotNull WalletFreezeRequest request) {
         var actor=access.requireAdmin(); var order=orders.findByIdForUpdate(id).orElseThrow(()->new AppException(ErrorCode.ORDER_NOT_FOUND));

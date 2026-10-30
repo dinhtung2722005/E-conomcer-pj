@@ -45,7 +45,7 @@ tạo ví là idempotent theo user, trả 200 cả khi mới tạo và khi ví �
 | POST | `/api/admin/orders/{id}/refund/decision` | RefundDecisionRequest | RefundCaseResponse |
 | GET | `/api/admin/wallets/{id}/reconciliation` | ID ví | WalletReconciliationResponse |
 | GET | `/api/admin/wallet-ops/summary` | ADMIN | Tổng quan vận hành |
-| GET | `/api/admin/wallet-ops/{transfers,holds,refunds,settlements,alerts,audit,debts}` | Phân trang ADMIN | Danh sách vận hành |
+| GET | `/api/admin/wallet-ops/{transfers,holds,refunds,settlements,alerts,audit,security-events,debts}` | Phân trang ADMIN | Danh sách vận hành |
 | POST | `/api/wallet/pin/recovery` | Không body | Challenge/email đã che |
 | POST | `/api/wallet/pin/recovery/confirm` | challengeId, code, newPin, confirmPin | Đăng nhập lại sau reset |
 | POST | `/api/wallet/security/recovery-email` | pin | Challenge xác minh email |
@@ -150,3 +150,7 @@ thêm một lần chuyển trạng thái. API không thay đổi số dư hoặc
 Response không chứa entity, PIN/hash PIN, idempotency key, token tài khoản ngân
 hàng hay thông báo lỗi raw của đối tác. Trước khi dùng khóa/mở khóa với database
 cũ, cần migration bảng `wallet_status_changes` như tài liệu mô hình ví.
+
+## Tra cứu log
+
+Mọi response có X-Request-Id. Audit/security-events hỗ trợ lọc actorId, walletId, action, reference, requestId, from/to. Xem [log và audit](wallet-logging.md).

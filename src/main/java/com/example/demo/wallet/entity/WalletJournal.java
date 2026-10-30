@@ -15,6 +15,7 @@ public class WalletJournal {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(nullable = false, unique = true, length = 150, updatable = false) private String eventKey;
     @Column(nullable = false, length = 3, updatable = false) private String currency;
+    @Column(name="request_id",length=80,updatable=false) private String requestId;
     @CreationTimestamp @Column(nullable = false, updatable = false) private LocalDateTime createdAt;
     @OneToMany(mappedBy = "journal", cascade = CascadeType.PERSIST)
     @Builder.Default private List<WalletJournalEntry> entries = new ArrayList<>();
@@ -22,4 +23,5 @@ public class WalletJournal {
     public void add(String account, java.math.BigDecimal amount) {
         entries.add(WalletJournalEntry.builder().journal(this).account(account).amount(amount).build());
     }
+    @PrePersist void correlate() { requestId=org.slf4j.MDC.get("requestId"); }
 }

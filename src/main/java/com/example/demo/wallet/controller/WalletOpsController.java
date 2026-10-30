@@ -17,7 +17,8 @@ public class WalletOpsController {
     @GetMapping("/refunds") public ApiResponse<PageResponse<WalletOpsDtos.Refund>> refunds(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) WalletRefundCase.Status status){return ok(service.refunds(page,status));}
     @GetMapping("/settlements") public ApiResponse<PageResponse<WalletOpsDtos.Settlement>> settlements(@Valid @ModelAttribute PageQuery page){return ok(service.settlements(page));}
     @GetMapping("/alerts") public ApiResponse<PageResponse<WalletOpsDtos.Alert>> alerts(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) WalletAlert.Status status){return ok(service.alerts(page,status));}
-    @GetMapping("/audit") public ApiResponse<PageResponse<WalletOpsDtos.Audit>> audit(@Valid @ModelAttribute PageQuery page){return ok(service.audit(page));}
+    @GetMapping("/audit") public ApiResponse<PageResponse<WalletOpsDtos.Audit>> audit(@Valid @ModelAttribute WalletAuditQuery query){return ok(service.audit(query));}
+    @GetMapping("/security-events") public ApiResponse<PageResponse<WalletOpsDtos.SecurityEvent>> securityEvents(@Valid @ModelAttribute WalletAuditQuery query){return ok(service.securityEvents(query));}
     @PostMapping("/alerts/{id}/review") public ApiResponse<WalletOpsDtos.Alert> review(@PathVariable Long id,@Valid @RequestBody WalletAlertReviewRequest request){return ok(service.review(id,request));}
     @PostMapping("/transfers/{id}/retry") public ApiResponse<Void> retryTransfer(@PathVariable Long id,@Valid @RequestBody WalletFreezeRequest request){service.retryTransfer(id,request);return ok(null);}
     @PostMapping("/settlements/{id}/retry") public ApiResponse<Void> retrySettlement(@PathVariable Long id,@Valid @RequestBody WalletFreezeRequest request){service.retrySettlement(id,request);return ok(null);}

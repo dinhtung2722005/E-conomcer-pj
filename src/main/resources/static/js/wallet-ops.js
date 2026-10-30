@@ -9,7 +9,8 @@
     refunds: ["Hồ sơ hoàn tiền", [["id","Hồ sơ"],["orderId","Đơn"],["status","Trạng thái"],["reason","Lý do"],["createdAt","Tiếp nhận"],["slaBreached","Quá hạn"]]],
     settlements: ["Quyết toán", [["orderId","Đơn"],["amount","Số tiền"],["availableAt","Đủ điều kiện lúc"],["attempts","Lần xử lý"],["lastError","Cần kiểm tra"],["slaBreached","Quá hạn"]]],
     alerts: ["Cảnh báo", [["id","Mã"],["category","Nhóm"],["reference","Tham chiếu"],["message","Nội dung"],["status","Trạng thái"],["lastSeenAt","Ghi nhận gần nhất"]]],
-    audit: ["Lịch sử thao tác", [["id","Mã"],["actorId","Người thao tác"],["action","Thao tác"],["reference","Tham chiếu"],["reason","Lý do"],["createdAt","Thời điểm"]]],
+    audit: ["Lịch sử thao tác", [["id","Mã"],["actorId","Người thao tác"],["walletId","Ví"],["action","Thao tác"],["reference","Tham chiếu"],["reason","Lý do"],["requestId","Request ID"],["createdAt","Thời điểm"]]],
+    "security-events": ["Bảo mật ví", [["id","Mã"],["actorId","Tài khoản"],["walletId","Ví"],["action","Sự kiện"],["outcome","Kết quả"],["code","Chi tiết"],["reference","Tham chiếu"],["requestId","Request ID"],["createdAt","Thời điểm"]]],
     debts: ["Công nợ hoàn tiền", [["id","Mã"],["userId","Tài khoản"],["refundCaseId","Hồ sơ hoàn"],["source","Nguồn"],["currency","Tiền tệ"],["amount","Phải thu"],["repaid","Đã thu hồi"]]]
   };
   async function api(url, body) {
@@ -26,7 +27,13 @@
   async function load() {
     try {
       message("Đang tải…");
-      const [summary, list] = await Promise.all([api(`${root}/summary`), api(`${root}/${tab}?page=${page}&size=20${tab==="transfers"&&$("overdue").checked?"&overdue=true":""}`)]);
+      const auditTab=tab==="audit"||tab==="security-events";
+      $("audit-filters").hidden=!auditTab;
+      $("audit-filters").elements.outcome.disabled=tab!=="security-events";
+      const query=new URLSearchParams({page,size:20});
+      if(tab==="transfers"&&$("overdue").checked)query.set("overdue","true");
+      if(auditTab)for(const [key,value] of new FormData($("audit-filters")))if(value.trim())query.set(key,value.trim());
+      const [summary, list] = await Promise.all([api(`${root}/summary`), api(`${root}/${tab}?${query}`)]);
       $("summary").replaceChildren();
       [["unfinishedTransfers","Giao dịch đang chờ"],["pendingRefunds","Hồ sơ chờ duyệt"],["openAlerts","Cảnh báo mới"],["unbalancedJournals","Bút toán cần kiểm tra"]].forEach(([key,label])=>{const card=element("div");card.className="card";card.append(element("span",label),element("strong",summary[key]));$("summary").append(card);});
       $("list-title").textContent=groups[tab][0]; $("overdue-label").hidden=tab!=="transfers";
@@ -53,6 +60,8 @@
   Object.entries(groups).forEach(([key,[label]])=>{const b=element("button",label);b.type="button";b.className=key===tab?"active":"";b.onclick=()=>{tab=key;page=1;[...$("tabs").children].forEach(x=>x.className="");b.className="active";load();};$("tabs").append(b);});
   $("session").onsubmit=e=>{e.preventDefault();token=$("token").value.trim();$("token").value="";page=1;load();};
   $("reload").onclick=load;$("overdue").onchange=()=>{page=1;load();};$("previous").onclick=()=>{if(page>1){page--;load();}};$("next").onclick=()=>{if(page<pages){page++;load();}};
+  $("audit-filters").onsubmit=e=>{e.preventDefault();page=1;load();};
+  $("audit-filters").onreset=()=>{page=1;setTimeout(load,0);};
   $("dismiss").onclick=()=>$("action").close();
   $("action-form").onsubmit=async e=>{e.preventDefault();if(!pendingAction)return;$("confirm").disabled=true;try{await api(pendingAction.url,{...pendingAction.payload,reason:$("reason").value.trim()});$("action").close();await load();}catch(error){$("action-error").textContent=error.message;}finally{$("confirm").disabled=false;}};
 })();

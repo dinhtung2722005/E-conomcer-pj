@@ -6,6 +6,17 @@
 <section id="summary" class="cards" aria-label="Tổng quan"></section>
 <nav id="tabs" aria-label="Danh sách vận hành"></nav>
 <section class="panel"><div class="toolbar"><h2 id="list-title">Giao dịch ngân hàng</h2><div><label id="overdue-label"><input id="overdue" type="checkbox"> Chỉ quá hạn</label><button id="reload" type="button" class="secondary">Tải lại</button></div></div>
+<form id="audit-filters" class="audit-filters" hidden>
+<label>Người thao tác<input name="actorId" type="number" min="1"></label>
+<label>Ví<input name="walletId" type="number" min="1"></label>
+<label>Hành động<input name="action" maxlength="50" placeholder="PIN_RESET / BANK_RETRY"></label>
+<label>Tham chiếu<input name="reference" maxlength="100"></label>
+<label>Request ID<input name="requestId" maxlength="80"></label>
+<label>Từ thời điểm<input name="from" type="datetime-local" step="1"></label>
+<label>Đến trước thời điểm<input name="to" type="datetime-local" step="1"></label>
+<label>Kết quả<select name="outcome"><option value="">Tất cả</option value="SUCCESS">Thành công</option><option value="REJECTED">Bị từ chối</option></select></label>
+<div><button type="submit">Lọc lịch sử</button><button type="reset" class="secondary">Xóa bộ lọc</button></div>
+</form>
 <div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div>
 <footer><span id="count">Chưa có dữ liệu</span><div><button id="previous" class="secondary" type="button">Trước</button><span id="page">1</span><button id="next" class="secondary" type="button">Sau</button></div></footer></section>
 <dialog id="action"><form id="action-form"><h2 id="action-title">Xử lý</h2><label>Lý do<textarea id="reason" maxlength="500" required rows="4"></textarea></label><p id="action-error" role="alert"></p><div class="dialog-buttons"><button id="dismiss" type="button" class="secondary">Quay lại</button><button id="confirm">Xác nhận</button></div></form></dialog>

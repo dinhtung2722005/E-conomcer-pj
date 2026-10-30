@@ -81,6 +81,13 @@ public class WalletBankWorker {
 
     /** Internal worker entry point; intentionally has no HTTP endpoint. */
     public void process(Long transferId) {
+        try(var context=new com.example.demo.observability.LogContext(java.util.Map.of(
+                "jobRunId",java.util.UUID.randomUUID().toString(),"transferId",transferId.toString()))){
+            processTransfer(transferId);
+        }
+    }
+
+    private void processTransfer(Long transferId) {
         BankGateway gateway = gateways.getIfAvailable();
         if (gateway == null) return;
         Claim claim = database.execute(status -> claim(transferId, gateway.provider()));

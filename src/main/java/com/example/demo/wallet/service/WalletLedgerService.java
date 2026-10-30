@@ -10,7 +10,7 @@ import com.example.demo.wallet.repository.WalletJournalRepository;
 import lombok.RequiredArgsConstructor;
 
 /** Append-only, balanced postings. All callers hold the relevant wallet locks in the same transaction. */
-@Service @RequiredArgsConstructor
+@Service @RequiredArgsConstructor @lombok.extern.slf4j.Slf4j
 public class WalletLedgerService {
     private final WalletJournalRepository journals;
 
@@ -26,7 +26,10 @@ public class WalletLedgerService {
         opening(journal, wallet, WalletBalanceType.CASH, true, wallet.getPendingBalance());
         opening(journal, wallet, WalletBalanceType.BONUS, false, wallet.getBonusBalance());
         opening(journal, wallet, WalletBalanceType.BONUS, true, wallet.getPendingBonusBalance());
-        if (!journal.getEntries().isEmpty()) journals.saveAndFlush(journal);
+        if (!journal.getEntries().isEmpty()) {
+            journals.saveAndFlush(journal);
+            logAfterCommit(journal);
+        }
         wallet.setLedgerOpened(true);
     }
 
@@ -56,5 +59,33 @@ public class WalletLedgerService {
             if (amount.signum() != 0) journal.add(account, amount);
         });
         journals.saveAndFlush(journal);
+        logAfterCommit(journal);
+    }
+
+    private void logAfterCommit(WalletJournal journal) {
+        Map<String,String> context=new java.util.HashMap<>();
+        var inherited=org.slf4j.MDC.getCopyOfContextMap();
+        if(inherited!=null)context.putAll(inherited);
+        context.put("journalId",journal.getId().toString());
+        context.put("eventKey",journal.getEventKey());
+        String[] parts=journal.getEventKey().split(":");
+        if(parts.length==2&&parts[1].matches("[0-9]+")){
+            if(java.util.Set.of("hold","refund","reserve","bank","withdraw-cancel").contains(parts[0]))context.put("transactionId",parts[1]);
+            if(java.util.Set.of("settlement","cashback","bonus-debt").contains(parts[0]))context.put("orderId",parts[1]);
+        }
+        String walletIds=journal.getEntries().stream().map(WalletJournalEntry::getAccount)
+                .filter(a->a.startsWith("wallet:")).map(a->a.split(":")[1]).distinct().sorted()
+                .collect(java.util.stream.Collectors.joining(","));
+        String currency=journal.getCurrency();
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization(){
+                @Override public void afterCommit(){
+                    try(var scope=new com.example.demo.observability.LogContext(context)){
+                        log.atInfo().addKeyValue("event","WALLET_JOURNAL_COMMITTED")
+                                .addKeyValue("walletIds",walletIds).addKeyValue("currency",currency)
+                                .log("Wallet journal committed");
+                    }
+                }
+            });
     }
 }

@@ -16,5 +16,7 @@ public final class WalletOpsDtos {
         LocalDateTime nextAttemptAt,int attempts,String lastError,boolean slaBreached) {}
     public record Alert(Long id,String category,String reference,String message,WalletAlert.Status status,
         LocalDateTime createdAt,LocalDateTime lastSeenAt,Long reviewedBy,String reviewReason) {}
-    public record Audit(Long id,Long actorId,String action,String reference,String reason,LocalDateTime createdAt) {}
+    public record Audit(Long id,Long actorId,Long walletId,String action,String reference,String reason,String requestId,LocalDateTime createdAt) {}
+    public record SecurityEvent(Long id,Long actorId,Long walletId,String action,String outcome,String code,
+        String reference,String requestId,LocalDateTime createdAt) {}
 }

@@ -45,7 +45,7 @@ public class WalletReserveService {
             wallet.setBalance(wallet.getBalance().subtract(request.amount()));var op=operations.create(wallet,key,fingerprint,type,UUID.randomUUID().toString());
             var t=transactions.saveAndFlush(WalletTransaction.builder().wallet(wallet).operation(op).referenceId(op.getReference()).idempotencyKey("op:"+op.getId()+":CASH").type(type).amount(request.amount()).status(TransactionStatus.SUCCESS).completedAt(LocalDateTime.now()).build());
             ledger.move("reserve:"+t.getId(),wallet.getCurrency(),ledger.account(wallet,WalletBalanceType.CASH,false),"platform:REFUND_RESERVE",request.amount());
-            audit.saveAndFlush(WalletOpsAudit.builder().actorId(currentUser.getCurrentUserId()).action(type.name()).reference(t.getId().toString()).reason(request.reason().strip()).build());
+            audit.saveAndFlush(WalletOpsAudit.builder().actorId(currentUser.getCurrentUserId()).walletId(wallet.getId()).action(type.name()).reference(t.getId().toString()).reason(request.reason().strip()).build());
             return t.getId();
         });
     }

@@ -74,13 +74,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             userId = Long.valueOf(jwtUtils.getUserIdFromJwtToken(jwt));
             tokenVersion = jwtUtils.getTokenVersion(jwt);
         } catch (Exception e) {
-            log.debug("Không đọc được claim của token: {}", e.getMessage());
+            log.debug("Không đọc được claim của token ({})", e.getClass().getSimpleName());
             return;
         }
 
         // Token đã bị thu hồi (logout, đổi mật khẩu) -> từ chối.
         if (jwtId != null && invalidatedTokenRepository.existsById(jwtId)) {
-            log.debug("Token đã bị thu hồi, bỏ qua xác thực (jti={})", jwtId);
+            log.debug("Token đã bị thu hồi, bỏ qua xác thực");
             return;
         }
 
@@ -106,5 +106,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 principal, null, principal.getAuthorities());
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
+        request.setAttribute("audit.actorId", userId);
+        org.slf4j.MDC.put("userId", userId.toString());
     }
 }

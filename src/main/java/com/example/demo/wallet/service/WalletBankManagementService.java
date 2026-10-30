@@ -28,7 +28,7 @@ public class WalletBankManagementService {
             pins.requireAuthorization(auth,wallet,"REVOKE_BANK:"+id);
             var account=accounts.findByIdAndWalletId(id,wallet.getId()).orElseThrow(()->new AppException(ErrorCode.WALLET_BANK_ACCOUNT_NOT_FOUND));
             if(account.getRevokedAt()!=null)return;account.setRevokedAt(LocalDateTime.now());
-            audit.saveAndFlush(WalletOpsAudit.builder().actorId(currentUser.getCurrentUserId()).action("REVOKE_BANK").reference(id.toString()).reason(request.reason().strip()).build());
+            audit.saveAndFlush(WalletOpsAudit.builder().actorId(currentUser.getCurrentUserId()).walletId(wallet.getId()).action("REVOKE_BANK").reference(id.toString()).reason(request.reason().strip()).build());
             notifications.publish(wallet,"bank-revoked:"+id,"Thu hồi liên kết ngân hàng","Liên kết ngân hàng đã được thu hồi; yêu cầu mới không thể dùng liên kết này.",null);
         });
     }
@@ -49,7 +49,7 @@ public class WalletBankManagementService {
             ledger.move("withdraw-cancel:"+transactionId,wallet.getCurrency(),ledger.account(wallet,WalletBalanceType.CASH,true),ledger.account(wallet,WalletBalanceType.CASH,false),transaction.getAmount());
             transaction.setStatus(TransactionStatus.CANCELLED);transaction.setCompletedAt(LocalDateTime.now());
             transfer.setFinished(true);transfer.setSuspended(false);transfer.setLastError("USER_CANCELLED");
-            audit.saveAndFlush(WalletOpsAudit.builder().actorId(currentUser.getCurrentUserId()).action("CANCEL_WITHDRAWAL").reference(transactionId.toString()).reason(request.reason().strip()).build());
+            audit.saveAndFlush(WalletOpsAudit.builder().actorId(currentUser.getCurrentUserId()).walletId(wallet.getId()).action("CANCEL_WITHDRAWAL").reference(transactionId.toString()).reason(request.reason().strip()).build());
         });
     }
 }

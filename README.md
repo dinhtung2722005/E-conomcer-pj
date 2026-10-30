@@ -28,7 +28,7 @@ Toàn bộ cấu hình nằm trong `src/main/resources/application.properties` �
 | `cloudinary.*` | — | Thiếu/sai thì chỉ chức năng upload avatar bị tắt |
 | `app.cors.allowed-origins` | `http://localhost:3000,http://localhost:5173,http://localhost:8080` | Danh sách origin của frontend, phân tách bằng `,` |
 | `app.order.pending-timeout-minutes` | `15` | Đơn `PENDING` quá hạn này sẽ bị tự hủy và hoàn kho |
-| `ADMIN_INITIAL_PASSWORD` (biến môi trường) | sinh ngẫu nhiên, in ra log | Mật khẩu admin tạo ở lần chạy đầu, khi chưa có tài khoản nào |
+| `ADMIN_INITIAL_PASSWORD` (biến môi trường) | bỏ qua tạo admin nếu thiếu | Mật khẩu admin ban đầu; không in ra log |
 
 > **Khi deploy lên môi trường thật:** biến môi trường có độ ưu tiên cao hơn `application.properties`, nên có thể ghi đè mà không phải sửa code. Tên biến là dạng viết hoa + gạch dưới của property — ví dụ `app.jwt.secret` → `APP_JWT_SECRET`, `cloudinary.api-secret` → `CLOUDINARY_API_SECRET`. Xem `.env.example`.
 
@@ -246,6 +246,8 @@ Lombok dependency và annotation processor dùng chung `${lombok.version}` trong
 ```
 
 Test cần MySQL đang chạy và tài khoản DB hiện tại có quyền `CREATE DATABASE` / `DROP DATABASE`.
+Kiểm thử phân quyền audit còn cần `CREATE USER`, `DROP USER` và quyền cấp SELECT/INSERT
+trên database kiểm thử; tài khoản test giới hạn được tạo tạm rồi dọn trong finally.
 Mỗi Spring test context tạo database riêng `ecommerce_test_<UUID>`, tạo bảng trong đó,
 và tự xóa database kiểm thử khi đóng context. Các test không sửa bảng/dữ liệu trong
 database ứng dụng đang cấu hình.
@@ -257,3 +259,7 @@ thu hồi phiên khi đổi mật khẩu/khóa tài khoản, cập nhật hồ s
 đơn hàng, cùng luồng HTTP admin login/refresh/logout. Các test API quản trị kiểm tra
 phân trang trên mọi danh sách, tham số sai, bộ lọc user, phân quyền, CRUD qua đường
 dẫn chuẩn/alias và cập nhật trạng thái lặp lại. `DemoApplicationTests` kiểm tra khởi động context.
+
+## Log và audit
+
+Xem [log JSON, requestId, lịch sử bảo mật và SQL bảo vệ audit](docs/wallet-logging.md).
