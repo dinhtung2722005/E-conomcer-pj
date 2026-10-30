@@ -38,6 +38,7 @@ tạo ví là idempotent theo user, trả 200 cả khi mới tạo và khi ví �
 | GET | `/api/wallet/top-ups/{id}` | ID giao dịch của tôi | TopUpResponse |
 | POST | `/api/wallet/withdrawals` | WithdrawRequest + Idempotency-Key | WithdrawResponse |
 | GET | `/api/wallet/withdrawals/{id}` | ID giao dịch của tôi | WithdrawResponse |
+| POST | `/api/orders/{id}/pay` | PayOrderRequest + Idempotency-Key | PaymentResponse |
 | GET | `/api/wallet/transactions` | WalletHistoryQuery qua query string | PageResponse<WalletTransactionResponse> |
 | GET | `/api/wallet/transactions/{id}` | ID giao dịch dương | WalletTransactionResponse |
 | GET | `/api/wallet/holds` | WalletHoldQuery qua query string | PageResponse<WalletHoldResponse> |
@@ -57,6 +58,14 @@ nhận PIN mới. PIN chỉ lưu dưới dạng BCrypt. Mặc định nhập sai
 cấu hình bằng `wallet.pin.max-attempts` và `wallet.pin.lock-duration` (ISO Duration).
 Bộ đếm sai được commit riêng, kể cả khi nghiệp vụ tài chính bị rollback. Không có
 API xác minh PIN trả cờ cho phép thanh toán; xác minh diễn ra trong service.
+
+Thanh toán lấy số tiền từ `Order.finalAmount`, chỉ chủ đơn được thanh toán.
+`useBonus=true` dùng BONUS trước rồi CASH; không kết hợp thẻ/ngân hàng khi checkout.
+Đơn 0 đồng không tạo giao dịch/hold 0 đồng. Tiền chuyển sang pending cho đến quyết
+toán; kho được xác nhận và đơn chuyển PAID trong cùng transaction. Admin không
+còn được chuyển PENDING sang PAID trực tiếp. Hủy từ khách/admin/job dùng chung
+luồng hoàn tiền cùng transaction kho/voucher, trả đúng nguồn CASH/BONUS. Gửi lại
+cùng key trả kết quả thanh toán gốc; key mới không thể thanh toán lại đơn đã trả tiền.
 
 `GET /api/wallet/transactions` nhận:
 

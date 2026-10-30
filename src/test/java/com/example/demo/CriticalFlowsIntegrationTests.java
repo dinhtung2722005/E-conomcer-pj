@@ -72,6 +72,10 @@ class CriticalFlowsIntegrationTests {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired CheckoutService checkout;
     @Autowired OrderService orderService;
+    @Autowired com.example.demo.wallet.service.WalletPaymentService walletPayments;
+    @Autowired com.example.demo.wallet.service.WalletService walletService;
+    @Autowired com.example.demo.wallet.repository.WalletRepository wallets;
+    @Autowired com.example.demo.wallet.repository.WalletSecurityRepository walletSecurity;
     @Autowired AuthService auth;
     @Autowired UserService userService;
     @Autowired AdminUserService adminUsers;
@@ -140,7 +144,8 @@ class CriticalFlowsIntegrationTests {
         saveVoucher(customer, voucher);
         cart(customer, product);
         Long orderId = checkout.placeOrder(customer.getId(), request(voucher.getCode())).getId();
-        orderService.updateOrderStatus(orderId, OrderStatus.PAID);
+        fundWallet(customer);
+        pay(customer, orderId);
 
         var results = concurrently(() -> orderService.cancelOrder(orderId), () -> orderService.cancelOrder(orderId));
 
@@ -158,8 +163,9 @@ class CriticalFlowsIntegrationTests {
         cart(customer, product);
         Long orderId = checkout.placeOrder(customer.getId(), request(null)).getId();
 
+        fundWallet(customer);
         var results = concurrently(
-                () -> orderService.updateOrderStatus(orderId, OrderStatus.PAID),
+                () -> pay(customer, orderId),
                 () -> orderService.cancelOrder(orderId));
 
         assertTrue(results.get(1).success());
@@ -174,7 +180,8 @@ class CriticalFlowsIntegrationTests {
         User customer = user();
         cart(customer, product);
         Long orderId = checkout.placeOrder(customer.getId(), request(null)).getId();
-        orderService.updateOrderStatus(orderId, OrderStatus.PAID);
+        fundWallet(customer);
+        pay(customer, orderId);
 
         assertFalse(orderService.cancelExpiredOrder(orderId, LocalDateTime.now().plusMinutes(1)));
         assertEquals(OrderStatus.PAID, orders.findById(orderId).orElseThrow().getStatus());
@@ -693,6 +700,30 @@ class CriticalFlowsIntegrationTests {
                 .header("Content-Type", "application/json")
                 .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body))
                 .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private void fundWallet(User user) {
+        Long walletId = walletService.initializeWallet(user.getId()).getId();
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var wallet = wallets.findByIdForUpdate(walletId).orElseThrow();
+            wallet.setBalance(new BigDecimal("1000"));
+            walletSecurity.saveAndFlush(com.example.demo.wallet.entity.WalletSecurity.builder().wallet(wallet)
+                    .pinHash(passwordEncoder.encode("123456")).build());
+        });
+    }
+
+    private com.example.demo.wallet.dto.PaymentResponse pay(User user, Long orderId) {
+        var principal = new com.example.demo.user.security.UserPrincipal(user);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities()));
+        try {
+            var request = new com.example.demo.wallet.dto.PayOrderRequest();
+            request.setPin("123456");
+            return walletPayments.payOrder(orderId, request, "pay:" + orderId);
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 
     private record Result<T>(T value, ErrorCode error) {

@@ -23,6 +23,7 @@ import com.example.demo.user.exception.AppException;
 import com.example.demo.user.dto_request.PageQuery;
 import com.example.demo.user.dto_request.PageResponse;
 import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.wallet.service.WalletOrderFundsService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final VoucherRepository voucherRepository;
     private final UserVoucherRepository userVoucherRepository;
+    private final WalletOrderFundsService walletFunds;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getAllOrders(PageQuery pagination) {
@@ -76,13 +78,9 @@ public class OrderService {
         }
 
         if (newStatus == OrderStatus.PAID) {
-            // Hàng đã bán thật: trừ hẳn khỏi số đang giữ chỗ.
-            for (OrderItem item : sortedItems(order)) {
-                inventoryService.confirmSale(item.getProduct().getId(), item.getQuantity());
-            }
+            throw new AppException(ErrorCode.ORDER_STATUS_INVALID, "Thanh toán đơn hàng phải đi qua ví");
         } else if (newStatus == OrderStatus.CANCELLED) {
-            restock(order);
-            refundVoucher(order);
+            return cancelLockedOrder(order);
         }
 
         order.setStatus(newStatus);
@@ -119,6 +117,7 @@ public class OrderService {
                     "Không thể hủy đơn hàng ở trạng thái " + current);
         }
 
+        walletFunds.refundCancellation(order);
         restock(order);
         refundVoucher(order);
 
