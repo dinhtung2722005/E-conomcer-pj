@@ -25,6 +25,10 @@ public class BankTransfer {
     @Column(name = "next_attempt_at", nullable = false)
     private LocalDateTime nextAttemptAt;
     private LocalDateTime leaseUntil;
+    /** Set durably before the first external dispatch; absence plus attempts=0 permits safe cancellation. */
+    private LocalDateTime dispatchStartedAt;
+    @Column(nullable = false) @org.hibernate.annotations.ColumnDefault("0")
+    private boolean suspended;
     @Column(length = 36)
     private String leaseToken;
     @Column(nullable = false)

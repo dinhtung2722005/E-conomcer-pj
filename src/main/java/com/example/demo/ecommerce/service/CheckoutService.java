@@ -76,6 +76,7 @@ public class CheckoutService {
         for (CartItem cartItem : cart.getItems().stream()
                 .sorted(Comparator.comparing(item -> item.getProduct().getId())).toList()) {
             Product product = cartItem.getProduct();
+            if (product.getSellerId() == null) throw new AppException(ErrorCode.WALLET_ORDER_NOT_READY);
 
             if (product.getStatus() != ProductStatus.ACTIVE) {
                 throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE,

@@ -28,6 +28,7 @@ public class UserPrincipal implements UserDetails {
     private final String password;
     private final UserRole role;
     private final boolean active;
+    private final long tokenVersion;
 
     public UserPrincipal(User user) {
         this.id = user.getId();
@@ -36,6 +37,7 @@ public class UserPrincipal implements UserDetails {
         this.password = user.getPassword();
         this.role = user.getRole();
         this.active = user.isActive();
+        this.tokenVersion = user.getTokenVersion();
     }
 
     @Override

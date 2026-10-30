@@ -635,7 +635,12 @@ class CriticalFlowsIntegrationTests {
     }
 
     private Product product(int stock) {
+        String sellerName = "seller_" + UUID.randomUUID().toString().substring(0, 12);
+        User seller = users.saveAndFlush(User.builder().username(sellerName).email(sellerName + "@example.test")
+                .password("test-only").role(UserRole.SELLER).build());
+        wallets.saveAndFlush(com.example.demo.wallet.entity.Wallet.builder().userId(seller.getId()).build());
         Product product = products.saveAndFlush(Product.builder().name("Test " + UUID.randomUUID())
+                .sellerId(seller.getId())
                 .price(new BigDecimal("100")).status(ProductStatus.ACTIVE).build());
         inventories.saveAndFlush(Inventory.builder().product(product).availableQuantity(stock).lockedQuantity(0).build());
         return product;

@@ -17,6 +17,11 @@ public interface BankGateway {
     /** Resume/lookup first; only submit if absent. Repeating this command MUST NOT transfer twice. */
     Result resolve(Command command);
 
+    /** Read-only lookup. MUST NEVER initiate a transfer, even if the reference is absent. */
+    default Result lookup(Command command) {
+        throw new UnsupportedOperationException("Read-only bank lookup is not configured");
+    }
+
     record VerifiedAccount(String accountToken, String bankCode, String bankName,
             String maskedAccountNumber, String accountHolderName) {}
     record Command(String merchantReference, TransactionType type, BigDecimal amount, String currency,

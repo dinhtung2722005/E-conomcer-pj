@@ -44,6 +44,10 @@ public class WalletLedgerService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void post(String eventKey, String currency, Map<String, BigDecimal> entries) {
+        if (entries == null || entries.values().stream().anyMatch(amount -> amount == null
+                || amount.stripTrailingZeros().scale() > 4 || amount.abs().compareTo(new BigDecimal("1000000000000000")) >= 0)) {
+            throw new IllegalArgumentException("Ledger entries must fit DECIMAL(19,4) without rounding");
+        }
         if (entries.size() < 2 || entries.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add).signum() != 0) {
             throw new IllegalArgumentException("Unbalanced wallet journal");
         }

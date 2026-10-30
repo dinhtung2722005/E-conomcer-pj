@@ -15,6 +15,8 @@ import jakarta.persistence.LockModeType;
 
 /** Locking methods require the caller's read/write transaction, covering balances and related records. */
 public interface WalletRepository extends JpaRepository<Wallet, Long> {
+    @Query("select count(w) from Wallet w where w.userId in :userIds and w.currency = :currency")
+    long countByUserIdsAndCurrency(java.util.Collection<Long> userIds, String currency);
     @Query("select w.id from Wallet w where w.id > :afterId order by w.id")
     java.util.List<Long> findIdsAfter(Long afterId, org.springframework.data.domain.Pageable page);
     @Query("select w.id from Wallet w where w.userId in :userIds order by w.id")

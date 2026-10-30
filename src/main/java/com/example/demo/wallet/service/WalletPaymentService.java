@@ -36,6 +36,7 @@ public class WalletPaymentService {
     private final CurrentUserService currentUser;
     private final PlatformTransactionManager transactionManager;
     private final WalletLedgerService ledger;
+    private final WalletPaymentPrerequisites prerequisites;
 
     public PaymentResponse payOrder(@NotNull @Positive Long orderId, @NotNull @Valid PayOrderRequest request, String key) {
         var user = currentUser.getCurrentUser();
@@ -43,6 +44,7 @@ public class WalletPaymentService {
         String fingerprint = operations.fingerprint("PAYMENT|" + orderId + "|" + request.isUseBonus());
         var authorization = pins.authorize(request.getPin(), fingerprint);
         return new TransactionTemplate(transactionManager).execute(status -> {
+            pins.lockAuthorizingUser(authorization);
             // All order money paths use Order -> Wallet -> security/transactions -> holds -> inventory.
             Order order = orders.findByIdAndUserIdForUpdate(orderId, user.getId())
                     .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
@@ -53,6 +55,7 @@ public class WalletPaymentService {
             if (existing.isPresent()) return response(orderId, wallet.getCurrency(), existing.get());
             if (order.getStatus() != OrderStatus.PENDING) throw new AppException(ErrorCode.ORDER_STATUS_INVALID);
             if (wallet.getStatus() != WalletStatus.ACTIVE) throw new AppException(ErrorCode.WALLET_LOCKED);
+            prerequisites.validate(order, wallet.getCurrency());
             BigDecimal total = order.getFinalAmount();
             if (total == null || total.signum() < 0) throw new AppException(ErrorCode.INVALID_REQUEST);
             BigDecimal bonus = request.isUseBonus() ? wallet.getBonusBalance().min(total) : BigDecimal.ZERO;

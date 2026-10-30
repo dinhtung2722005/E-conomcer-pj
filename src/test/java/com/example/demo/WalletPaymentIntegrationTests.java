@@ -45,6 +45,8 @@ class WalletPaymentIntegrationTests {
     @Autowired InventoryRepository inventories;
     @Autowired PasswordEncoder encoder;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired WalletSettlementPolicy policy;
+    private Long sellerId;
     @MockitoSpyBean InventoryService inventory;
     private User owner;
     private Long walletId;
@@ -55,6 +57,10 @@ class WalletPaymentIntegrationTests {
                 .password(encoder.encode("password123")).role(UserRole.CUSTOMER).build());
         authenticate();
         walletId = walletService.initializeMyWallet().getId();
+        String sellerName = "seller_" + UUID.randomUUID().toString().replace("-", "");
+        sellerId = users.saveAndFlush(User.builder().username(sellerName).email(sellerName + "@example.test")
+                .password("test-only").role(UserRole.SELLER).build()).getId();
+        wallets.saveAndFlush(Wallet.builder().userId(sellerId).build());
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             var wallet = wallets.findByIdForUpdate(walletId).orElseThrow();
             wallet.setBalance(new BigDecimal("100")); wallet.setBonusBalance(new BigDecimal("40"));
@@ -152,12 +158,14 @@ class WalletPaymentIntegrationTests {
     }
     private Order order(String amount) {
         var product = products.saveAndFlush(Product.builder().name("Product " + UUID.randomUUID())
+                .sellerId(sellerId)
                 .price(new BigDecimal(amount)).status(ProductStatus.ACTIVE).build());
         inventories.saveAndFlush(Inventory.builder().product(product).availableQuantity(0).lockedQuantity(1).build());
         var order = Order.builder().userId(owner.getId()).totalAmount(new BigDecimal(amount)).finalAmount(new BigDecimal(amount))
                 .status(OrderStatus.PENDING).receiverName("Customer").receiverPhone("0901234567").shippingAddress("Test address").build();
-        order.addItem(OrderItem.builder().product(product).productName(product.getName()).quantity(1)
+        order.addItem(OrderItem.builder().product(product).sellerId(sellerId).productName(product.getName()).quantity(1)
                 .priceAtPurchase(product.getPrice()).build());
+        policy.snapshot(order);
         return orders.saveAndFlush(order);
     }
     private void authenticate() {

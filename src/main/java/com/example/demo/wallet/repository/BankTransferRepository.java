@@ -13,10 +13,11 @@ public interface BankTransferRepository extends JpaRepository<BankTransfer, Long
         Long getWalletId();
         Long getTransactionId();
         Long getHoldId();
+        Long getUserId();
     }
 
     @Query("select t.transaction.wallet.id as walletId, t.transaction.id as transactionId, "
-            + "h.id as holdId from BankTransfer t left join t.transaction.hold h where t.id = :id")
+            + "h.id as holdId, t.transaction.wallet.userId as userId from BankTransfer t left join t.transaction.hold h where t.id = :id")
     Optional<Route> findRoute(Long id);
     @Query("select t.id from BankTransfer t where t.finished = false and t.nextAttemptAt <= :now "
             + "and (t.leaseUntil is null or t.leaseUntil <= :now) and t.id > :afterId order by t.id")

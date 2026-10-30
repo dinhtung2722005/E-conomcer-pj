@@ -90,6 +90,7 @@ public class WalletFundingService {
         String fingerprint = fingerprint(TransactionType.WITHDRAW, request.getAmount(), request.getLinkedBankAccountId());
         var authorization = pins.authorize(request.getPin(), fingerprint);
         return new TransactionTemplate(transactionManager).execute(status -> {
+            pins.lockAuthorizingUser(authorization);
             Wallet wallet = lockWallet(userId);
             pins.requireAuthorization(authorization, wallet, fingerprint);
             var existing = operations.find(wallet, key, fingerprint);

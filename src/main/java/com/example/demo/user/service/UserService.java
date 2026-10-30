@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private final com.example.demo.wallet.service.WalletService walletService;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -45,7 +46,9 @@ public class UserService {
                 .role(UserRole.CUSTOMER)
                 .build();
 
-        return toProfileResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        walletService.initializeWallet(saved.getId());
+        return toProfileResponse(saved);
     }
 
     @Transactional(readOnly = true)

@@ -13,6 +13,7 @@ public class WalletSettlementWorker {
     private final WalletSettlementService settlement;
     private final OrderRepository orders;
     private final boolean enabled;
+    private long cursor;
 
     public WalletSettlementWorker(WalletSettlementService settlement, OrderRepository orders,
             @Value("${wallet.settlement.worker-enabled:true}") boolean enabled) {
@@ -21,12 +22,11 @@ public class WalletSettlementWorker {
 
     @Scheduled(fixedDelayString = "${wallet.settlement.poll-delay-ms:60000}",
             initialDelayString = "${wallet.settlement.initial-delay-ms:60000}")
-    public void run() {
+    public synchronized void run() {
         if (!enabled) return;
-        Long cursor = 0L;
         for (int batch = 0; batch < 10; batch++) {
             var ids = orders.findSettlementDueIds(LocalDateTime.now(), cursor, PageRequest.of(0, 100));
-            if (ids.isEmpty()) return;
+            if (ids.isEmpty()) { cursor = 0L; return; }
             for (Long id : ids) {
                 try { settlement.settle(id); }
                 catch (RuntimeException exception) {

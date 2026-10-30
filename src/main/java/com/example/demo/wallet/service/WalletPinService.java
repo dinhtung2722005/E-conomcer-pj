@@ -109,9 +109,20 @@ public class WalletPinService {
             ErrorCode error = checkPin(row, pin);
             if (error != null) return Result.failure(error);
             security.flush();
-            return Result.success(new Authorization(context.wallet().getId(), row.getVersion(), operation,
+            return Result.success(new Authorization(context.user().getId(), context.user().getTokenVersion(), context.wallet().getId(), row.getVersion(), operation,
                     LocalDateTime.now().plusMinutes(1)));
         });
+    }
+
+    /** Must be the first lock of a financial transaction: User -> Order -> Wallet. */
+    void lockAuthorizingUser(Authorization authorization) {
+        if (authorization == null || !currentUser.getCurrentUserId().equals(authorization.userId)) {
+            throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
+        }
+        User user = users.findByIdForUpdate(authorization.userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
+        if (user.getTokenVersion() != authorization.tokenVersion) throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
     }
 
     /** Call after locking the wallet in the financial transaction, before changing balances. */
@@ -126,12 +137,16 @@ public class WalletPinService {
     }
 
     public static final class Authorization {
+        private final Long userId;
+        private final long tokenVersion;
         private final Long walletId;
         private final Long version;
         private final String operation;
         private final LocalDateTime expiresAt;
 
-        private Authorization(Long walletId, Long version, String operation, LocalDateTime expiresAt) {
+        private Authorization(Long userId, long tokenVersion, Long walletId, Long version, String operation, LocalDateTime expiresAt) {
+            this.userId = userId;
+            this.tokenVersion = tokenVersion;
             this.walletId = walletId;
             this.version = version;
             this.operation = operation;
@@ -181,6 +196,9 @@ public class WalletPinService {
             User user = users.findByIdForUpdate(userId)
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
+            if (user.getTokenVersion() != currentUser.getCurrentPrincipal().getTokenVersion()) {
+                throw new AppException(ErrorCode.TOKEN_INVALID);
+            }
             Wallet wallet = wallets.findByUserIdForUpdate(userId)
                     .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
             WalletSecurity row = security.findByWalletIdForUpdate(wallet.getId())

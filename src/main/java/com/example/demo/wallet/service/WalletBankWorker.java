@@ -28,11 +28,14 @@ public class WalletBankWorker {
     private final TransactionTemplate database;
     private final boolean enabled;
     private final WalletLedgerService ledger;
+    private long cursor;
+    private final com.example.demo.user.repository.UserRepository users;
 
     public WalletBankWorker(BankTransferRepository transfers, WalletRepository wallets,
             WalletTransactionRepository transactions, WalletHoldRepository holds, ObjectProvider<BankGateway> gateways,
             ObjectMapper json, PlatformTransactionManager transactionManager,
             WalletLedgerService ledger,
+            com.example.demo.user.repository.UserRepository users,
             @Value("${wallet.bank.worker-enabled:true}") boolean enabled) {
         this.transfers = transfers;
         this.wallets = wallets;
@@ -42,19 +45,19 @@ public class WalletBankWorker {
         this.json = json;
         this.enabled = enabled;
         this.ledger = ledger;
+        this.users = users;
         this.database = new TransactionTemplate(transactionManager);
         this.database.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Scheduled(fixedDelayString = "${wallet.bank.poll-delay-ms:30000}",
             initialDelayString = "${wallet.bank.initial-delay-ms:30000}")
-    public void reconcile() {
+    public synchronized void reconcile() {
         if (!enabled || gateways.getIfAvailable() == null) return;
-        Long cursor = 0L;
         // Bound each sweep; IDs missed by a competing lease are revisited in the next sweep.
         for (int batch = 0; batch < 10; batch++) {
             var ids = transfers.findDueIds(LocalDateTime.now(), cursor, PageRequest.of(0, 100));
-            if (ids.isEmpty()) return;
+            if (ids.isEmpty()) { cursor = 0L; return; }
             for (Long id : ids) {
                 try {
                     process(id);
@@ -75,7 +78,7 @@ public class WalletBankWorker {
         if (claim == null) return;
         BankGateway.Result result;
         try {
-            result = gateway.resolve(claim.command());
+            result = claim.lookupOnly() ? gateway.lookup(claim.command()) : gateway.resolve(claim.command());
         } catch (RuntimeException exception) {
             database.executeWithoutResult(status -> recordUnknown(transferId, claim.token(), "GATEWAY_UNKNOWN"));
             return;
@@ -84,17 +87,30 @@ public class WalletBankWorker {
     }
 
     private Claim claim(Long id, String provider) {
+        var route = transfers.findRoute(id).orElse(null);
+        if (route == null) return null;
+        var user = users.findByIdForUpdate(route.getUserId()).orElse(null);
+        Wallet wallet = wallets.findByIdForUpdate(route.getWalletId()).orElseThrow();
+        var transaction = transactions.findByIdAndWalletIdForUpdate(route.getTransactionId(), wallet.getId()).orElseThrow();
         BankTransfer transfer = transfers.findByIdForUpdate(id).orElse(null);
         LocalDateTime now = LocalDateTime.now();
         if (transfer == null || transfer.isFinished() || transfer.getNextAttemptAt().isAfter(now)
                 || transfer.getLeaseUntil() != null && transfer.getLeaseUntil().isAfter(now)
                 || !transfer.getBankAccount().getProvider().equals(provider)) return null;
+        boolean blocked = transaction.getType() == TransactionType.WITHDRAW
+                && (wallet.getStatus() != WalletStatus.ACTIVE || user == null || !user.isActive());
+        if (blocked && transfer.getDispatchStartedAt() == null && transfer.getAttempts() == 0) {
+            transfer.setSuspended(true); transfer.setLastError("WALLET_SUSPENDED");
+            transfer.setNextAttemptAt(now.plusMinutes(5)); return null;
+        }
+        transfer.setSuspended(false);
         String token = UUID.randomUUID().toString();
         transfer.setLeaseToken(token);
         transfer.setLeaseUntil(now.plusMinutes(2));
         transfer.setAttempts(Math.min(transfer.getAttempts() + 1, 1000000));
-        var transaction = transfer.getTransaction();
-        return new Claim(token, new BankGateway.Command(transfer.getMerchantReference(), transaction.getType(),
+        if (transfer.getDispatchStartedAt() == null) transfer.setDispatchStartedAt(now);
+        transaction.setStatus(TransactionStatus.PROCESSING);
+        return new Claim(token, blocked, new BankGateway.Command(transfer.getMerchantReference(), transaction.getType(),
                 transaction.getAmount(), transaction.getWallet().getCurrency(), transfer.getBankAccount().getAccountToken()));
     }
 
@@ -186,5 +202,5 @@ public class WalletBankWorker {
         transfer.setLeaseUntil(null);
     }
 
-    private record Claim(String token, BankGateway.Command command) {}
+    private record Claim(String token, boolean lookupOnly, BankGateway.Command command) {}
 }

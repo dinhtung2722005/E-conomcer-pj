@@ -16,5 +16,7 @@ public class WalletJournalEntry {
     @JoinColumn(name = "journal_id", nullable = false, updatable = false) private WalletJournal journal;
     @Column(nullable = false, length = 100, updatable = false) private String account;
     /** Signed liability movement; the sum of each journal is zero. */
+    @jakarta.validation.constraints.NotNull
+    @jakarta.validation.constraints.Digits(integer = 15, fraction = 4)
     @Column(nullable = false, precision = 19, scale = 4, updatable = false) private BigDecimal amount;
 }

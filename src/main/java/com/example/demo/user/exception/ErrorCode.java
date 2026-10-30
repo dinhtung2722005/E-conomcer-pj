@@ -84,6 +84,7 @@ public enum ErrorCode {
     WALLET_BANK_UNAVAILABLE(503, "Chưa cấu hình kết nối ngân hàng"),
     WALLET_BANK_ACCOUNT_NOT_FOUND(404, "Không tìm thấy tài khoản ngân hàng đã xác minh"),
     WALLET_REFUND_NOT_FOUND(404, "Không tìm thấy yêu cầu hoàn hàng"),
+    WALLET_ORDER_NOT_READY(409, "Đơn chưa có đủ thông tin người bán và ví nhận để thanh toán"),
 
     // ===== Voucher =====
     VOUCHER_NOT_FOUND(404, "Mã giảm giá không tồn tại"),
