@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +18,10 @@ import com.example.demo.wallet.dto.WalletHoldQuery;
 import com.example.demo.wallet.dto.WalletHoldResponse;
 import com.example.demo.wallet.dto.WalletResponse;
 import com.example.demo.wallet.dto.WalletTransactionResponse;
+import com.example.demo.wallet.dto.ChangePinRequest;
+import com.example.demo.wallet.dto.SetupPinRequest;
+import com.example.demo.wallet.dto.WalletSecurityResponse;
+import com.example.demo.wallet.service.WalletPinService;
 import com.example.demo.wallet.service.WalletService;
 
 import jakarta.validation.Valid;
@@ -29,6 +34,24 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WalletController {
     private final WalletService walletService;
+    private final WalletPinService pinService;
+
+    @GetMapping("/security")
+    public ApiResponse<WalletSecurityResponse> getSecurity() {
+        return new ApiResponse<>(200, "Thành công", pinService.getMySecurity());
+    }
+
+    @PostMapping("/pin")
+    public ApiResponse<WalletSecurityResponse> setupPin(
+            @Valid @RequestBody SetupPinRequest request) {
+        return new ApiResponse<>(200, "Thiết lập PIN thành công", pinService.setupPin(request));
+    }
+
+    @PutMapping("/pin")
+    public ApiResponse<WalletSecurityResponse> changePin(
+            @Valid @RequestBody ChangePinRequest request) {
+        return new ApiResponse<>(200, "Đổi PIN thành công", pinService.changePin(request));
+    }
 
     /** Idempotent initialization returns HTTP 200 for both new and existing wallets. */
     @PostMapping

@@ -1,7 +1,7 @@
 # API quản lý ví
 
-Các API này gọi WalletService hiện có. Nạp/rút, thanh toán đơn và thiết lập/đổi
-PIN chưa có service/API. Khởi tạo ví chưa tự chạy trong luồng đăng ký.
+Ví được tạo cùng transaction đăng ký; tài khoản cũ có thể gọi POST để khởi tạo.
+PIN có API thiết lập/đổi và trạng thái bảo mật. Nạp/rút, thanh toán đơn đang được bổ sung.
 
 ## Xác thực và response
 
@@ -28,6 +28,9 @@ tạo ví là idempotent theo user, trả 200 cả khi mới tạo và khi ví �
 |---|---|---|---|
 | POST | `/api/wallet` | Không cần body | WalletResponse |
 | GET | `/api/wallet` | Không có | WalletResponse |
+| GET | `/api/wallet/security` | Không có | WalletSecurityResponse |
+| POST | `/api/wallet/pin` | SetupPinRequest | WalletSecurityResponse |
+| PUT | `/api/wallet/pin` | ChangePinRequest | WalletSecurityResponse |
 | GET | `/api/wallet/transactions` | WalletHistoryQuery qua query string | PageResponse<WalletTransactionResponse> |
 | GET | `/api/wallet/transactions/{id}` | ID giao dịch dương | WalletTransactionResponse |
 | GET | `/api/wallet/holds` | WalletHoldQuery qua query string | PageResponse<WalletHoldResponse> |
@@ -41,6 +44,12 @@ User tự khóa được ví nhưng mở khóa chỉ có đường ADMIN. Ví LO
 số dư/lịch sử; các service chi tiền sau này phải kiểm tra khóa trước khi ghi nợ.
 
 ## Bộ lọc lịch sử
+
+Thiết lập PIN yêu cầu mật khẩu đăng nhập hiện tại; đổi PIN yêu cầu PIN cũ và xác
+nhận PIN mới. PIN chỉ lưu dưới dạng BCrypt. Mặc định nhập sai 5 lần khóa 15 phút;
+cấu hình bằng `wallet.pin.max-attempts` và `wallet.pin.lock-duration` (ISO Duration).
+Bộ đếm sai được commit riêng, kể cả khi nghiệp vụ tài chính bị rollback. Không có
+API xác minh PIN trả cờ cho phép thanh toán; xác minh diễn ra trong service.
 
 `GET /api/wallet/transactions` nhận:
 

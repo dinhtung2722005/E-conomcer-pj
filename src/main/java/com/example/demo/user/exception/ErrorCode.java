@@ -72,6 +72,17 @@ public enum ErrorCode {
     // ===== Ví nội bộ =====
     WALLET_NOT_FOUND(404, "Không tìm thấy ví"),
     WALLET_TRANSACTION_NOT_FOUND(404, "Không tìm thấy giao dịch ví"),
+    WALLET_PIN_NOT_CONFIGURED(409, "Vui lòng thiết lập mã PIN ví"),
+    WALLET_PIN_ALREADY_CONFIGURED(409, "Ví đã có mã PIN"),
+    WALLET_PIN_INCORRECT(400, "Mã PIN không chính xác"),
+    WALLET_PIN_LOCKED(429, "Mã PIN đang bị khóa tạm thời, vui lòng thử lại sau"),
+    WALLET_PIN_UNCHANGED(400, "Mã PIN mới phải khác mã PIN hiện tại"),
+    WALLET_PIN_AUTHORIZATION_EXPIRED(409, "Vui lòng xác thực lại mã PIN"),
+    WALLET_LOCKED(403, "Ví đang bị khóa chi tiêu và rút tiền"),
+    WALLET_INSUFFICIENT_BALANCE(409, "Số dư ví không đủ"),
+    WALLET_IDEMPOTENCY_CONFLICT(409, "Khóa yêu cầu đã được dùng với nội dung khác"),
+    WALLET_BANK_UNAVAILABLE(503, "Chưa cấu hình kết nối ngân hàng"),
+    WALLET_BANK_ACCOUNT_NOT_FOUND(404, "Không tìm thấy tài khoản ngân hàng đã xác minh"),
 
     // ===== Voucher =====
     VOUCHER_NOT_FOUND(404, "Mã giảm giá không tồn tại"),

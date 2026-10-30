@@ -19,6 +19,7 @@ import com.example.demo.user.exception.ErrorCode;
 import com.example.demo.user.repository.InvalidatedTokenRepository;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.JwtUtils;
+import com.example.demo.wallet.service.WalletService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class AuthService {
     private final InvalidatedTokenRepository invalidatedTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessionRevocationService sessionRevocationService;
+    private final WalletService walletService;
 
     /** Kết quả nội bộ, chỉ accessToken và hồ sơ được đưa vào JSON; refreshToken đi qua cookie. */
     public record Session(UserProfileResponse user, String accessToken, String refreshToken) {}
@@ -61,6 +63,7 @@ public class AuthService {
                 .build();
 
         User saved = userRepository.save(user);
+        walletService.initializeWallet(saved.getId());
         return toProfile(saved);
     }
 
