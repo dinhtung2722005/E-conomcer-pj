@@ -84,6 +84,9 @@ class WalletSafetyIntegrationTests {
     @Autowired WalletLedgerService ledger;
     @Autowired WalletJournalRepository journals;
     @Autowired OrderService orderService;
+    @Autowired WalletJobCursorService cursors;
+    @Autowired WalletAlertService alerts;
+    @Autowired WalletSettlementRetryService retries;
     @Autowired AdminUserService adminUsers;
     @Autowired ProbeBank bank;
     @Autowired PasswordEncoder encoder;
@@ -125,7 +128,7 @@ class WalletSafetyIntegrationTests {
             return LongStream.rangeClosed(cursor + 1, Math.min(cursor + 100, 1001)).boxed().toList();
         });
         when(service.settle(1001L)).thenReturn(true);
-        WalletSettlementWorker worker = new WalletSettlementWorker(service, repository, true);
+        WalletSettlementWorker worker = new WalletSettlementWorker(service, repository, cursors, alerts, retries, true);
         worker.run(); worker.run();
         verify(service, times(1)).settle(1L);
         verify(service, times(1)).settle(1000L);

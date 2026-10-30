@@ -28,7 +28,9 @@ public class WalletBankWorker {
     private final TransactionTemplate database;
     private final boolean enabled;
     private final WalletLedgerService ledger;
-    private long cursor;
+    private final WalletJobCursorService cursors;
+    private final WalletAlertService alerts;
+    private final WalletSecurityRepository security;
     private final com.example.demo.user.repository.UserRepository users;
 
     public WalletBankWorker(BankTransferRepository transfers, WalletRepository wallets,
@@ -36,6 +38,8 @@ public class WalletBankWorker {
             ObjectMapper json, PlatformTransactionManager transactionManager,
             WalletLedgerService ledger,
             com.example.demo.user.repository.UserRepository users,
+            WalletJobCursorService cursors, WalletAlertService alerts,
+            WalletSecurityRepository security,
             @Value("${wallet.bank.worker-enabled:true}") boolean enabled) {
         this.transfers = transfers;
         this.wallets = wallets;
@@ -46,6 +50,8 @@ public class WalletBankWorker {
         this.enabled = enabled;
         this.ledger = ledger;
         this.users = users;
+        this.cursors=cursors; this.alerts=alerts;
+        this.security=security;
         this.database = new TransactionTemplate(transactionManager);
         this.database.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -56,16 +62,16 @@ public class WalletBankWorker {
         if (!enabled || gateways.getIfAvailable() == null) return;
         // Bound each sweep; IDs missed by a competing lease are revisited in the next sweep.
         for (int batch = 0; batch < 10; batch++) {
-            var ids = transfers.findDueIds(LocalDateTime.now(), cursor, PageRequest.of(0, 100));
-            if (ids.isEmpty()) { cursor = 0L; return; }
+            var ids = cursors.claim("bank",(after,page)->transfers.findDueIds(LocalDateTime.now(),after,page));
+            if (ids.isEmpty()) return;
             for (Long id : ids) {
                 try {
                     process(id);
                 } catch (RuntimeException exception) {
+                    alerts.record("BANK_TRANSFER",id.toString(),"Giao dịch ngân hàng cần đối soát");
                     // A DB outage cannot turn an unknown bank outcome into failure; lease expiry retries it.
                     log.warn("Bank transfer {} requires reconciliation ({})", id, exception.getClass().getSimpleName());
                 }
-                cursor = id;
             }
         }
     }
@@ -91,6 +97,7 @@ public class WalletBankWorker {
         if (route == null) return null;
         var user = users.findByIdForUpdate(route.getUserId()).orElse(null);
         Wallet wallet = wallets.findByIdForUpdate(route.getWalletId()).orElseThrow();
+        var pin=security.findByWalletIdForUpdate(wallet.getId()).orElse(null);
         var transaction = transactions.findByIdAndWalletIdForUpdate(route.getTransactionId(), wallet.getId()).orElseThrow();
         BankTransfer transfer = transfers.findByIdForUpdate(id).orElse(null);
         LocalDateTime now = LocalDateTime.now();
@@ -98,7 +105,8 @@ public class WalletBankWorker {
                 || transfer.getLeaseUntil() != null && transfer.getLeaseUntil().isAfter(now)
                 || !transfer.getBankAccount().getProvider().equals(provider)) return null;
         boolean blocked = transaction.getType() == TransactionType.WITHDRAW
-                && (wallet.getStatus() != WalletStatus.ACTIVE || user == null || !user.isActive());
+                && (wallet.getStatus() != WalletStatus.ACTIVE || user == null || !user.isActive()
+                    || pin!=null&&pin.getWithdrawalBlockedUntil()!=null&&pin.getWithdrawalBlockedUntil().isAfter(now));
         if (blocked && transfer.getDispatchStartedAt() == null && transfer.getAttempts() == 0) {
             transfer.setSuspended(true); transfer.setLastError("WALLET_SUSPENDED");
             transfer.setNextAttemptAt(now.plusMinutes(5)); return null;

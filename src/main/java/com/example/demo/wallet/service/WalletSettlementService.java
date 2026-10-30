@@ -87,6 +87,7 @@ public class WalletSettlementService {
                     ledger.account(buyer, WalletBalanceType.BONUS, false), cashback);
         }
         order.setSettledAt(LocalDateTime.now()); orders.saveAndFlush(order);
+        order.setSettlementLastError(null); order.setSettlementNextAttemptAt(null);
         return true;
     }
 }

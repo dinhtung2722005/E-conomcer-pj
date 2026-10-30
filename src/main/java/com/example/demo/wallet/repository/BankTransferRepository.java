@@ -8,7 +8,10 @@ import org.springframework.data.jpa.repository.*;
 import com.example.demo.wallet.entity.BankTransfer;
 import jakarta.persistence.LockModeType;
 
-public interface BankTransferRepository extends JpaRepository<BankTransfer, Long> {
+public interface BankTransferRepository extends JpaRepository<BankTransfer, Long>, JpaSpecificationExecutor<BankTransfer> {
+    long countByFinishedFalse();
+    @Query("select t.id from BankTransfer t where t.finished=false and t.createdAt<:cutoff and t.id>:after order by t.id")
+    java.util.List<Long> overdueIds(LocalDateTime cutoff,Long after,Pageable page);
     interface Route {
         Long getWalletId();
         Long getTransactionId();

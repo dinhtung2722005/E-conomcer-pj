@@ -63,6 +63,9 @@ public class WalletSecurity {
 
     @Column(name = "pin_changed_at")
     private LocalDateTime pinChangedAt;
+    /** Protected recovery address: never follows unverified profile edits. */
+    @JsonIgnore @Column(length=100) private String recoveryEmail;
+    private LocalDateTime withdrawalBlockedUntil;
 
     @Version
     private Long version;

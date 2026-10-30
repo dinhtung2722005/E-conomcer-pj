@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vận hành ví · Admin</title><link rel="stylesheet" href="/css/wallet-ops.css"><script src="/js/wallet-ops.js" defer></script></head>
+<body><main><header><div><p class="eyebrow">QUẢN TRỊ SÀN</p><h1>Vận hành ví</h1><p>Theo dõi tiền đang chờ, xử lý hồ sơ và kiểm tra cảnh báo.</p></div><a href="/">Về trang chính</a></header>
+<form id="session" class="session"><label for="token">Access token quản trị <span>(bỏ trống nếu đã đăng nhập bằng cookie)</span></label><div><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Dán token trong phiên này"><button>Kết nối</button></div><small>Token chỉ giữ trong bộ nhớ trang, mất khi tải lại.</small></form>
+<p id="message" role="status" aria-live="polite">Kết nối tài khoản ADMIN để xem dữ liệu.</p>
+<section id="summary" class="cards" aria-label="Tổng quan"></section>
+<nav id="tabs" aria-label="Danh sách vận hành"></nav>
+<section class="panel"><div class="toolbar"><h2 id="list-title">Giao dịch ngân hàng</h2><div><label id="overdue-label"><input id="overdue" type="checkbox"> Chỉ quá hạn</label><button id="reload" type="button" class="secondary">Tải lại</button></div></div>
+<div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div>
+<footer><span id="count">Chưa có dữ liệu</span><div><button id="previous" class="secondary" type="button">Trước</button><span id="page">1</span><button id="next" class="secondary" type="button">Sau</button></div></footer></section>
+<dialog id="action"><form id="action-form"><h2 id="action-title">Xử lý</h2><label>Lý do<textarea id="reason" maxlength="500" required rows="4"></textarea></label><p id="action-error" role="alert"></p><div class="dialog-buttons"><button id="dismiss" type="button" class="secondary">Quay lại</button><button id="confirm">Xác nhận</button></div></form></dialog>
+</main></body></html>

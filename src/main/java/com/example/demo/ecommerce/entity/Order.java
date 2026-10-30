@@ -51,6 +51,10 @@ public class Order {
     private LocalDateTime completedAt;
     private LocalDateTime settlementAvailableAt;
     private LocalDateTime settledAt;
+    private LocalDateTime settlementNextAttemptAt;
+    @Column(nullable=false) @org.hibernate.annotations.ColumnDefault("0")
+    private int settlementAttempts;
+    @Column(length=80) private String settlementLastError;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -71,7 +71,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/flash-sales/**").permitAll()
-                        .requestMatchers("/", "/index.html", "/favicon.ico", "/css/**", "/js/**", "/images/**").permitAll()
+                        .requestMatchers("/", "/index.html", "/wallet-ops.html", "/favicon.ico", "/css/**", "/js/**", "/images/**").permitAll()
 
                         // ---- Chỉ ADMIN ----
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

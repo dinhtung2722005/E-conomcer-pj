@@ -12,9 +12,12 @@ public class WalletReconciliationWorker {
     private final WalletRepository wallets;
     private final WalletReconciliationService reconciliation;
     private final boolean enabled;
+    private final WalletAlertService alerts;
     public WalletReconciliationWorker(WalletRepository wallets, WalletReconciliationService reconciliation,
+            WalletAlertService alerts,
             @Value("${wallet.reconciliation.worker-enabled:true}") boolean enabled) {
         this.wallets = wallets; this.reconciliation = reconciliation; this.enabled = enabled;
+        this.alerts=alerts;
     }
     @Scheduled(fixedDelayString = "${wallet.reconciliation.poll-delay-ms:3600000}",
             initialDelayString = "${wallet.reconciliation.initial-delay-ms:3600000}")
@@ -28,6 +31,7 @@ public class WalletReconciliationWorker {
                 try {
                     var report = reconciliation.inspect(id);
                     if (Boolean.FALSE.equals(report.getLedgerConsistent()) || !report.isHoldsConsistent()) {
+                        alerts.record("WALLET_RECONCILIATION",id.toString(),"Số dư ví và sổ/khoản giữ không khớp");
                         log.error("Wallet {} reconciliation mismatch; review required", id);
                     }
                 } catch (RuntimeException exception) {
