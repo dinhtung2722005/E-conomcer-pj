@@ -69,6 +69,10 @@ public enum ErrorCode {
     ORDER_NOT_OWNED(403, "Bạn không có quyền truy cập đơn hàng này"),
     ORDER_STATUS_INVALID(400, "Không thể chuyển đơn hàng sang trạng thái này"),
 
+    // ===== Ví nội bộ =====
+    WALLET_NOT_FOUND(404, "Không tìm thấy ví"),
+    WALLET_TRANSACTION_NOT_FOUND(404, "Không tìm thấy giao dịch ví"),
+
     // ===== Voucher =====
     VOUCHER_NOT_FOUND(404, "Mã giảm giá không tồn tại"),
     VOUCHER_CODE_EXISTED(409, "Mã giảm giá đã tồn tại"),
