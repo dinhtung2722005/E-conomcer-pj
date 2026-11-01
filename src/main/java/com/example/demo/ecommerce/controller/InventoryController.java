@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -19,6 +22,7 @@ import com.example.demo.shared.web.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "Admin - Inventory", description = "Quản trị tồn kho; yêu cầu quyền ADMIN.")
 @RestController
 @RequestMapping("/api/admin/inventories")
 @PreAuthorize("hasRole('ADMIN')")
@@ -28,16 +32,19 @@ public class InventoryController {
     private final InventoryService inventoryService;
 
     @PostMapping("/add-stock")
+    @Operation(summary = "Nhập hoặc cập nhật tồn kho")
     public ApiResponse<InventoryResponse> addStock(@Valid @RequestBody InventoryRequest request) {
         return new ApiResponse<>(200, "Nhập kho thành công", inventoryService.addStock(request));
     }
 
     @GetMapping
+    @Operation(summary = "Danh sách tồn kho")
     public ApiResponse<PageResponse<InventoryResponse>> getAllInventories(@Valid @ModelAttribute PageQuery pagination) {
         return new ApiResponse<>(200, "Thành công", inventoryService.getAllInventories(pagination));
     }
 
     @GetMapping("/product/{productId}")
+    @Operation(summary = "Tồn kho theo sản phẩm")
     public ApiResponse<InventoryResponse> getInventoryByProduct(@PathVariable Long productId) {
         return new ApiResponse<>(200, "Thành công", inventoryService.getInventoryByProductId(productId));
     }

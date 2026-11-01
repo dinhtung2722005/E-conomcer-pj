@@ -1,5 +1,8 @@
 package com.example.demo.user.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  * (đã chặn ở tầng URL trong {@code SecurityConfig} và ở đây bằng {@code @PreAuthorize}).
  */
 @Slf4j
+@Tag(name = "Admin - Users", description = "Quản lý người dùng; yêu cầu quyền ADMIN. /api/users là alias của /api/admin/users.")
 @RestController
 @RequestMapping({"/api/admin/users", "/api/users"})
 @PreAuthorize("hasRole('ADMIN')")
@@ -40,22 +44,26 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Tạo tài khoản người dùng")
     public ApiResponse<UserProfileResponse> createUser(@Valid @RequestBody UserCreationRequest request) {
         return new ApiResponse<>(201, "Tạo tài khoản thành công", registration.createUser(request));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Chi tiết người dùng")
     public ApiResponse<UserProfileResponse> getUserById(@PathVariable Long id) {
         return new ApiResponse<>(200, "Thành công", userService.getUserById(id));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Cập nhật người dùng")
     public ApiResponse<UserProfileResponse> updateUser(@PathVariable Long id,
                                                       @Valid @RequestBody UserUpdateRequest request) {
         return new ApiResponse<>(200, "Cập nhật tài khoản thành công", userService.updateUser(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa người dùng")
     public ApiResponse<Void> deleteUser(@PathVariable Long id) {
         UserPrincipal current = (UserPrincipal) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();

@@ -1,5 +1,11 @@
 package com.example.demo.user.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.SchemaProperty;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.io.IOException;
 import java.util.Set;
 
@@ -33,6 +39,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
+@Tag(name = "Profile", description = "Hồ sơ cá nhân của tài khoản đang đăng nhập.")
 @RestController
 @RequestMapping("/api/details")
 @Slf4j
@@ -57,12 +64,14 @@ public class ProfileController {
     private DataSize maxAvatarSize;
 
     @GetMapping("/profile")
+    @Operation(summary = "Xem hồ sơ của tôi")
     public ApiResponse<UserProfileResponse> getProfile() {
         UserProfileResponse profile = userService.profile(currentUserService.getCurrentUsername());
         return new ApiResponse<>(200, "Lấy thông tin profile thành công", profile);
     }
 
     @PutMapping("/profile")
+    @Operation(summary = "Cập nhật hồ sơ của tôi")
     public ApiResponse<UserProfileResponse> updateProfile(
             @Valid @RequestBody UserProfileUpdateRequest profileRequest) {
         UserProfileResponse updated = userService.updateProfile(currentUserService.getCurrentUsername(), profileRequest);
@@ -81,6 +90,7 @@ public class ProfileController {
      * </ol>
      */
     @PutMapping("/password")
+    @Operation(summary = "Đổi mật khẩu", description = "Thu hồi toàn bộ phiên đăng nhập sau khi đổi mật khẩu thành công.")
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request,
                                                             HttpServletRequest httpRequest) {
         String username = currentUserService.getCurrentUsername();
@@ -96,6 +106,12 @@ public class ProfileController {
     }
 
     @PostMapping("/avatar")
+    @Operation(summary = "Tải ảnh đại diện",
+            description = "Gửi multipart/form-data với trường file; tối đa 5 MB theo cấu hình hiện tại. Hỗ trợ JPEG, PNG, GIF, WEBP.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true,
+                    content = @Content(mediaType = "multipart/form-data",
+                            schema = @Schema(type = "object", requiredProperties = {"file"}),
+                            schemaProperties = @SchemaProperty(name = "file", schema = @Schema(type = "string", format = "binary")))))
     public ApiResponse<UserProfileResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
         byte[] content = readValidatedImage(file);
 

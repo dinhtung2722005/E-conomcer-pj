@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +26,7 @@ import lombok.RequiredArgsConstructor;
  * {@code userId} nằm trong query string và {@code /api/carts/**} lại được
  * {@code permitAll()}, nên bất kỳ ai cũng đọc/ghi/xóa được giỏ hàng của người khác.
  */
+@Tag(name = "Cart", description = "Giỏ hàng của tài khoản đang đăng nhập.")
 @RestController
 @RequestMapping("/api/carts")
 @RequiredArgsConstructor
@@ -32,11 +36,13 @@ public class CustomerCartController {
     private final UserAccountsApi currentUserService;
 
     @GetMapping
+    @Operation(summary = "Xem giỏ hàng của tôi")
     public ApiResponse<CartCustomerResponse> getMyCart() {
         return new ApiResponse<>(200, "Thành công", cartService.getCart(currentUserService.getCurrentUserId()));
     }
 
     @PostMapping("/add")
+    @Operation(summary = "Thêm sản phẩm vào giỏ")
     public ApiResponse<CartCustomerResponse> addToCart(@RequestParam Long productId,
                                                        @RequestParam(defaultValue = "1") Integer quantity) {
         Long userId = currentUserService.getCurrentUserId();
@@ -45,6 +51,7 @@ public class CustomerCartController {
     }
 
     @PutMapping("/items/{itemId}")
+    @Operation(summary = "Cập nhật số lượng trong giỏ")
     public ApiResponse<CartCustomerResponse> updateQuantity(@PathVariable Long itemId,
                                                             @RequestParam Integer quantity) {
         Long userId = currentUserService.getCurrentUserId();
@@ -53,6 +60,7 @@ public class CustomerCartController {
     }
 
     @DeleteMapping("/items/{itemId}")
+    @Operation(summary = "Xóa một mục trong giỏ")
     public ApiResponse<CartCustomerResponse> removeItem(@PathVariable Long itemId) {
         Long userId = currentUserService.getCurrentUserId();
         cartService.removeCartItem(userId, itemId);
@@ -60,6 +68,7 @@ public class CustomerCartController {
     }
 
     @DeleteMapping("/clear")
+    @Operation(summary = "Xóa toàn bộ giỏ hàng")
     public ApiResponse<CartCustomerResponse> clearCart() {
         Long userId = currentUserService.getCurrentUserId();
         cartService.clearCart(userId);

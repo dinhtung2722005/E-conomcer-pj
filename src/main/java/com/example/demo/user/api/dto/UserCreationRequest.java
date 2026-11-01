@@ -1,5 +1,7 @@
 package com.example.demo.user.api.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -28,5 +30,6 @@ public class UserCreationRequest {
 
     @NotBlank(message = "Mật khẩu không được để trống")
     @Size(min = 8, max = 72, message = "Mật khẩu phải từ 8 đến 72 ký tự")
+    @Schema(description = "Mật khẩu từ 8 đến 72 ký tự", format = "password", accessMode = Schema.AccessMode.WRITE_ONLY)
     private String password;
 }

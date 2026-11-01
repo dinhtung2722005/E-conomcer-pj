@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -22,6 +25,7 @@ import lombok.RequiredArgsConstructor;
  * <p>Các thao tác trên ví voucher lấy {@code userId} từ JWT — trước đây nhận từ
  * query string nên người dùng có thể lưu/xem voucher của bất kỳ tài khoản nào.
  */
+@Tag(name = "Vouchers", description = "Voucher của tài khoản đang đăng nhập.")
 @RestController
 @RequestMapping("/api/vouchers")
 @RequiredArgsConstructor
@@ -32,11 +36,13 @@ public class CustomerVoucherController {
 
     /** Danh sách voucher công khai đang có hiệu lực. */
     @GetMapping
+    @Operation(summary = "Danh sách voucher khả dụng")
     public ApiResponse<List<VoucherCustomerResponse>> getAvailableVouchers() {
         return new ApiResponse<>(200, "Thành công", customerVoucherService.getAvailableVouchers());
     }
 
     @GetMapping("/validate")
+    @Operation(summary = "Kiểm tra điều kiện áp dụng voucher")
     public ApiResponse<VoucherCustomerResponse> validateVoucher(@RequestParam String code,
                                                                @RequestParam BigDecimal orderTotal) {
         return new ApiResponse<>(200, "Mã giảm giá hợp lệ",
@@ -44,12 +50,14 @@ public class CustomerVoucherController {
     }
 
     @PostMapping("/save")
+    @Operation(summary = "Lưu voucher vào tài khoản")
     public ApiResponse<Void> saveVoucher(@RequestParam String code) {
         customerVoucherService.saveVoucherToWallet(currentUserService.getCurrentUserId(), code);
         return new ApiResponse<>(200, "Đã lưu mã giảm giá vào ví thành công", null);
     }
 
     @GetMapping("/my-vouchers")
+    @Operation(summary = "Danh sách voucher đã lưu")
     public ApiResponse<List<VoucherCustomerResponse>> getMyVouchers() {
         return new ApiResponse<>(200, "Thành công",
                 customerVoucherService.getMyVouchers(currentUserService.getCurrentUserId()));

@@ -30,6 +30,7 @@
 		<java.version>21</java.version>
 		<!-- Oracle Java / NetBeans uses nb-javac based on JDK 27. -->
 		<lombok.version>1.18.48</lombok.version>
+		<springdoc.version>3.2.0</springdoc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -55,6 +56,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
 		</dependency>
 
 		<dependency>

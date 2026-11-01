@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -20,6 +23,7 @@ import com.example.demo.shared.web.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "Admin - Orders", description = "Quản trị đơn hàng; yêu cầu quyền ADMIN.")
 @RestController
 @RequestMapping("/api/admin/orders")
 @PreAuthorize("hasRole('ADMIN')")
@@ -30,11 +34,13 @@ public class OrderController {
     private final com.example.demo.ecommerce.api.OrderWorkflowUseCase workflow;
 
     @GetMapping
+    @Operation(summary = "Danh sách toàn bộ đơn hàng")
     public ApiResponse<PageResponse<OrderResponse>> getAllOrders(@Valid @ModelAttribute PageQuery pagination) {
         return new ApiResponse<>(200, "Thành công", orderService.getAllOrders(pagination));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Chi tiết đơn hàng quản trị")
     public ApiResponse<OrderResponse> getOrderById(@PathVariable Long id) {
         return new ApiResponse<>(200, "Thành công", orderService.getOrderById(id));
     }
@@ -47,6 +53,7 @@ public class OrderController {
      * được trả lại.
      */
     @PutMapping("/{id}/status")
+    @Operation(summary = "Cập nhật trạng thái đơn hàng")
     public ApiResponse<OrderResponse> updateOrderStatus(@PathVariable Long id,
                                                         @Valid @RequestBody OrderStatusUpdateRequest request) {
         return new ApiResponse<>(200, "Cập nhật trạng thái thành công",
@@ -54,6 +61,7 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/cancel")
+    @Operation(summary = "Hủy đơn hàng với quyền quản trị")
     public ApiResponse<OrderResponse> cancelOrder(@PathVariable Long id) {
         return new ApiResponse<>(200, "Đã hủy đơn và hoàn trả kho thành công",
                 workflow.cancelOrder(id));

@@ -1,4 +1,5 @@
 package com.example.demo.wallet.api.dto;
+import org.springdoc.core.annotations.ParameterObject;
 
 import java.time.LocalDateTime;
 import com.example.demo.shared.web.PageQuery;
@@ -8,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
+@ParameterObject
 public class WalletAuditQuery extends PageQuery {
     @Positive private Long actorId;
     @Positive private Long walletId;

@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +31,7 @@ import lombok.RequiredArgsConstructor;
  * Quản trị sản phẩm. Trước đây chỉ có duy nhất endpoint tạo mới, còn
  * {@code ProductService} đã có sẵn các method đọc/sửa/xóa nhưng không được expose.
  */
+@Tag(name = "Admin - Products", description = "Quản trị sản phẩm; yêu cầu quyền ADMIN.")
 @RestController
 @RequestMapping("/api/admin/products")
 @PreAuthorize("hasRole('ADMIN')")
@@ -38,21 +42,25 @@ public class ProductController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Tạo sản phẩm")
     public ApiResponse<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
         return new ApiResponse<>(201, "Tạo sản phẩm thành công", productService.createProduct(request));
     }
 
     @GetMapping
+    @Operation(summary = "Danh sách sản phẩm quản trị")
     public ApiResponse<PageResponse<ProductResponse>> getAllProducts(@Valid @ModelAttribute PageQuery pagination) {
         return new ApiResponse<>(200, "Thành công", productService.getAllProducts(pagination));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Chi tiết sản phẩm quản trị")
     public ApiResponse<ProductResponse> getProductById(@PathVariable Long id) {
         return new ApiResponse<>(200, "Thành công", productService.getProductById(id));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Cập nhật sản phẩm")
     public ApiResponse<ProductResponse> updateProduct(@PathVariable Long id,
                                                       @Valid @RequestBody ProductRequest request) {
         return new ApiResponse<>(200, "Cập nhật sản phẩm thành công", productService.updateProduct(id, request));
@@ -60,6 +68,7 @@ public class ProductController {
 
     /** Sản phẩm đã phát sinh đơn hàng sẽ được chuyển sang INACTIVE thay vì xóa cứng. */
     @DeleteMapping("/{id}")
+    @Operation(summary = "Ngừng kinh doanh sản phẩm", description = "Sản phẩm có đơn hàng được chuyển sang INACTIVE thay vì xóa cứng.")
     public ApiResponse<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return new ApiResponse<>(200, "Đã ngừng kinh doanh sản phẩm", null);

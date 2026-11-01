@@ -54,6 +54,9 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173,http://localhost:8080}")
     private String allowedOrigins;
 
+    @Value("${springdoc.api-docs.enabled:false}")
+    private boolean apiDocsEnabled;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -63,7 +66,16 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    // Documentation access never changes authorization for business APIs.
+                    if (apiDocsEnabled) {
+                        auth.requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll();
+                    } else {
+                        auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").denyAll();
+                    }
+                    auth
                         // ---- Công khai ----
                         // logout để công khai: request vẫn luôn xóa được cookie phiên,
                         // còn token (nếu còn hợp lệ) sẽ được đưa vào blacklist.
@@ -78,7 +90,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
 
                         // ---- Còn lại phải đăng nhập ----
-                        .anyRequest().authenticated());
+                        .anyRequest().authenticated();
+                });
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

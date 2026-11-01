@@ -1,5 +1,7 @@
 package com.example.demo.wallet.api.dto;
 
+import org.springdoc.core.annotations.ParameterObject;
+
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -16,6 +18,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+@ParameterObject
 public class WalletHoldQuery extends PageQuery {
     @NotNull
     @Size(min = 1, message = "Phải chọn ít nhất một trạng thái khoản giữ")

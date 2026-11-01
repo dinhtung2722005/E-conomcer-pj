@@ -60,6 +60,22 @@ com.example.demo
 
 ## Quy ước API
 
+### Swagger / OpenAPI
+
+Khi chạy profile `dev`, mở **http://localhost:8080/swagger-ui.html** để xem và thử API.
+Chọn nhóm `all`, `users`, `ecommerce` hoặc `wallet`; nhóm ví có cả các API
+thanh toán/hoàn tiền nằm dưới đường dẫn `/api/orders`.
+
+Đăng nhập bằng `POST /api/auth/login`, sao chép `result.accessToken`, bấm **Authorize**
+và dán token, không thêm tiền tố `Bearer`. API quản trị vẫn yêu cầu ADMIN; thanh toán/rút
+và những thao tác ví nhạy cảm vẫn yêu cầu PIN. Nạp/rút tiền thật cần cấu hình đối tác ngân hàng.
+
+Đặc tả JSON: `/v3/api-docs`; YAML: `/v3/api-docs.yaml`.
+Swagger tắt mặc định ngoài profile `dev`. Biến `APP_API_DOCS_ENABLED=true|false`
+điều khiển cả giao diện và đặc tả. Xem [hướng dẫn Swagger](docs/swagger.md).
+
+### Request và response
+
 - Mọi response thành công bọc trong `ApiResponse`: `{ "code": 200, "message": "...", "result": ... }`.
 - Lỗi trả về **HTTP status thật** (400/401/403/404/409/500) kèm cùng cấu trúc `ApiResponse`,
   `result = null`. Không lộ stack trace.

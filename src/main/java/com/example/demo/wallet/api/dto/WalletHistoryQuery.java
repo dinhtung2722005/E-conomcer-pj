@@ -1,5 +1,7 @@
 package com.example.demo.wallet.api.dto;
 
+import org.springdoc.core.annotations.ParameterObject;
+
 import java.time.LocalDateTime;
 
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +19,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+@ParameterObject
 public class WalletHistoryQuery extends PageQuery {
     private TransactionType type;
     private TransactionStatus status;

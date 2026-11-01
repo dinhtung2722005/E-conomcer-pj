@@ -1,4 +1,7 @@
 package com.example.demo.ecommerce.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.demo.ecommerce.api.dto.CategoryRequest;
 
 import org.springframework.http.HttpStatus;
@@ -24,6 +27,7 @@ import com.example.demo.shared.web.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "Admin - Vouchers", description = "Quản trị voucher; yêu cầu quyền ADMIN.")
 @RestController
 @RequestMapping("/api/admin/vouchers")
 @PreAuthorize("hasRole('ADMIN')")
@@ -34,16 +38,19 @@ public class VoucherController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Tạo voucher")
     public ApiResponse<VoucherResponse> createVoucher(@Valid @RequestBody VoucherRequest request) {
         return new ApiResponse<>(201, "Tạo mã giảm giá thành công", voucherService.createVoucher(request));
     }
 
     @GetMapping
+    @Operation(summary = "Danh sách voucher quản trị")
     public ApiResponse<PageResponse<VoucherResponse>> getAllVouchers(@Valid @ModelAttribute PageQuery pagination) {
         return new ApiResponse<>(200, "Thành công", voucherService.getAllVouchers(pagination));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Chi tiết voucher quản trị")
     public ApiResponse<VoucherResponse> getVoucherById(@PathVariable Long id) {
         return new ApiResponse<>(200, "Thành công", voucherService.getVoucherById(id));
     }
@@ -55,12 +62,14 @@ public class VoucherController {
      * {@code getVoucherById} — endpoint hoàn toàn không cập nhật gì cả.
      */
     @PutMapping("/{id}")
+    @Operation(summary = "Cập nhật voucher")
     public ApiResponse<VoucherResponse> updateVoucher(@PathVariable Long id,
                                                       @Valid @RequestBody VoucherRequest request) {
         return new ApiResponse<>(200, "Cập nhật mã giảm giá thành công", voucherService.updateVoucher(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa voucher")
     public ApiResponse<Void> deleteVoucher(@PathVariable Long id) {
         voucherService.deleteVoucher(id);
         return new ApiResponse<>(200, "Xóa mã giảm giá thành công", null);

@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +26,7 @@ import com.example.demo.shared.web.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "Admin - Flash Sale Items", description = "Quản trị sản phẩm flash sale; yêu cầu quyền ADMIN.")
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
@@ -33,6 +37,7 @@ public class FlashSaleItemController {
 
     @PostMapping("/flash-sales/{flashSaleId}/items")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Thêm sản phẩm vào flash sale")
     public ApiResponse<FlashSaleItemResponse> addItem(@PathVariable Long flashSaleId,
                                                       @Valid @RequestBody FlashSaleItemRequest request) {
         return new ApiResponse<>(201, "Thêm sản phẩm vào Flash Sale thành công",
@@ -40,11 +45,13 @@ public class FlashSaleItemController {
     }
 
     @GetMapping("/flash-sales/{flashSaleId}/items")
+    @Operation(summary = "Danh sách sản phẩm trong flash sale")
     public ApiResponse<PageResponse<FlashSaleItemResponse>> getItems(@PathVariable Long flashSaleId, @Valid @ModelAttribute PageQuery pagination) {
         return new ApiResponse<>(200, "Thành công", flashSaleItemService.getItemsByFlashSaleId(flashSaleId, pagination));
     }
 
     @PutMapping("/flash-sale-items/{itemId}")
+    @Operation(summary = "Cập nhật sản phẩm flash sale")
     public ApiResponse<FlashSaleItemResponse> updateItem(@PathVariable Long itemId,
                                                          @Valid @RequestBody FlashSaleItemRequest request) {
         return new ApiResponse<>(200, "Cập nhật thành công",
@@ -52,6 +59,7 @@ public class FlashSaleItemController {
     }
 
     @DeleteMapping("/flash-sale-items/{itemId}")
+    @Operation(summary = "Xóa sản phẩm khỏi flash sale")
     public ApiResponse<Void> removeItem(@PathVariable Long itemId) {
         flashSaleItemService.removeFlashSaleItem(itemId);
         return new ApiResponse<>(200, "Đã loại bỏ sản phẩm khỏi chương trình Flash Sale", null);

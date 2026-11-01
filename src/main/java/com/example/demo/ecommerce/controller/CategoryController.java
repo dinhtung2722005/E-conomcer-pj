@@ -1,5 +1,8 @@
 package com.example.demo.ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +27,7 @@ import com.example.demo.shared.web.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "Admin - Categories", description = "Quản trị danh mục; yêu cầu quyền ADMIN.")
 @RestController
 @RequestMapping("/api/admin/categories")
 @PreAuthorize("hasRole('ADMIN')")
@@ -34,21 +38,25 @@ public class CategoryController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Tạo danh mục")
     public ApiResponse<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request) {
         return new ApiResponse<>(201, "Tạo danh mục thành công", categoryService.create(request));
     }
 
     @GetMapping
+    @Operation(summary = "Danh sách danh mục quản trị")
     public ApiResponse<PageResponse<CategoryResponse>> getAllCategories(@Valid @ModelAttribute PageQuery pagination) {
         return new ApiResponse<>(200, "Thành công", categoryService.getAllCategories(pagination));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Chi tiết danh mục quản trị")
     public ApiResponse<CategoryResponse> getCategoryById(@PathVariable Long id) {
         return new ApiResponse<>(200, "Thành công", categoryService.getCategoryById(id));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Cập nhật danh mục")
     public ApiResponse<CategoryResponse> updateCategory(@PathVariable Long id,
                                                         @Valid @RequestBody CategoryRequest request) {
         return new ApiResponse<>(200, "Cập nhật danh mục thành công", categoryService.updateCategory(id, request));
@@ -56,6 +64,7 @@ public class CategoryController {
 
     /** Trả về cùng định dạng {@link ApiResponse} như mọi endpoint khác. */
     @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa danh mục")
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return new ApiResponse<>(200, "Xóa danh mục thành công", null);
