@@ -23,19 +23,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
+import com.example.demo.user.api.UserRole;
 import com.example.demo.user.repository.UserRepository;
-import com.example.demo.wallet.entity.TransactionStatus;
-import com.example.demo.wallet.entity.TransactionType;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
 import com.example.demo.wallet.entity.Wallet;
-import com.example.demo.wallet.entity.WalletBalanceType;
+import com.example.demo.wallet.api.WalletBalanceType;
 import com.example.demo.wallet.entity.WalletHold;
-import com.example.demo.wallet.entity.WalletHoldStatus;
-import com.example.demo.wallet.entity.WalletHoldType;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletHoldType;
 import com.example.demo.wallet.entity.WalletSecurity;
 import com.example.demo.wallet.entity.WalletTransaction;
 import com.example.demo.wallet.repository.WalletHoldRepository;
@@ -143,15 +143,15 @@ class WalletRepositoryIntegrationTests {
         Wallet owner = wallet();
         Wallet other = wallet();
         WalletHold cash = orderHold(owner, "order-reference");
-        WalletHold bonus = holds.saveAndFlush(WalletHold.builder().wallet(owner).order(cash.getOrder())
+        WalletHold bonus = holds.saveAndFlush(WalletHold.builder().wallet(owner).orderId(cash.getOrderId())
                 .referenceId(cash.getReferenceId()).type(WalletHoldType.ORDER_PAYMENT)
                 .balanceType(WalletBalanceType.BONUS).amount(new BigDecimal("25")).build());
         cash.capture(BigDecimal.TEN);
         holds.flush();
         assertEquals(List.of(cash.getId(), bonus.getId()), holds.findByWalletIdAndOrderIdForUpdate(owner.getId(),
-                cash.getOrder().getId()).stream().map(WalletHold::getId).toList());
-        assertEquals(2, holds.findByWalletIdAndOrderIdOrderByIdAsc(owner.getId(), cash.getOrder().getId()).size());
-        assertTrue(holds.findByWalletIdAndOrderIdForUpdate(other.getId(), cash.getOrder().getId()).isEmpty());
+                cash.getOrderId()).stream().map(WalletHold::getId).toList());
+        assertEquals(2, holds.findByWalletIdAndOrderIdOrderByIdAsc(owner.getId(), cash.getOrderId()).size());
+        assertTrue(holds.findByWalletIdAndOrderIdForUpdate(other.getId(), cash.getOrderId()).isEmpty());
         assertTrue(holds.findByIdAndWalletId(cash.getId(), other.getId()).isEmpty());
         assertTrue(holds.findByIdAndWalletIdForUpdate(cash.getId(), other.getId()).isEmpty());
         assertEquals(bonus.getId(), holds.findByWalletIdAndTypeAndReferenceIdAndBalanceType(owner.getId(),
@@ -274,7 +274,7 @@ class WalletRepositoryIntegrationTests {
         Order order = orders.saveAndFlush(Order.builder().userId(wallet.getUserId()).receiverName("Test Buyer")
                 .receiverPhone("0900000000").shippingAddress("Test address").status(OrderStatus.PAID)
                 .totalAmount(new BigDecimal("100")).finalAmount(new BigDecimal("100")).build());
-        return holds.saveAndFlush(WalletHold.builder().wallet(wallet).order(order).referenceId(reference)
+        return holds.saveAndFlush(WalletHold.builder().wallet(wallet).orderId(order.getId()).referenceId(reference)
                 .type(WalletHoldType.ORDER_PAYMENT).amount(new BigDecimal("100")).build());
     }
 

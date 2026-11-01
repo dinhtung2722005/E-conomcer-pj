@@ -4,11 +4,11 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 
-import com.example.demo.wallet.dto.WalletHoldResponse;
-import com.example.demo.wallet.dto.WalletResponse;
-import com.example.demo.wallet.dto.WalletSecurityResponse;
-import com.example.demo.wallet.dto.WalletTransactionResponse;
-import com.example.demo.wallet.entity.TransactionStatus;
+import com.example.demo.wallet.api.dto.WalletHoldResponse;
+import com.example.demo.wallet.api.dto.WalletResponse;
+import com.example.demo.wallet.api.dto.WalletSecurityResponse;
+import com.example.demo.wallet.api.dto.WalletTransactionResponse;
+import com.example.demo.wallet.api.TransactionStatus;
 import com.example.demo.wallet.entity.Wallet;
 import com.example.demo.wallet.entity.WalletHold;
 import com.example.demo.wallet.entity.WalletSecurity;
@@ -24,7 +24,7 @@ public interface WalletMapper {
             "java(transaction.getStatus() == TransactionStatus.FAILED ? \"Giao dịch không thành công\" : null)")
     WalletTransactionResponse toTransactionResponse(WalletTransaction transaction);
 
-    @Mapping(target = "orderId", source = "order.id")
+    @Mapping(target = "orderId", source = "orderId")
     WalletHoldResponse toHoldResponse(WalletHold hold);
 
     @Mapping(target = "pinConfigured", expression =

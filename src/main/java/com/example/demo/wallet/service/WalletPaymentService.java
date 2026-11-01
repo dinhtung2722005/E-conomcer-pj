@@ -1,82 +1,93 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletHoldType;
+import com.example.demo.wallet.api.WalletStatus;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
+import com.example.demo.wallet.api.dto.PaymentResponse;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.validation.annotation.Validated;
-import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.ecommerce.entity.OrderStatus;
-import com.example.demo.ecommerce.repository.OrderRepository;
-import com.example.demo.ecommerce.service.InventoryService;
-import com.example.demo.user.exception.*;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.ecommerce.api.OrderSnapshot;
+import com.example.demo.wallet.api.*;
+import com.example.demo.ecommerce.api.OrderStatus;
+import com.example.demo.shared.error.*;
+import com.example.demo.user.api.UserAccountsApi;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
-@Service @Validated @RequiredArgsConstructor
-@Transactional(propagation = Propagation.NOT_SUPPORTED)
+@Service @RequiredArgsConstructor
 public class WalletPaymentService {
-    private final OrderRepository orders;
     private final WalletRepository wallets;
     private final WalletTransactionRepository transactions;
     private final WalletHoldRepository holds;
     private final WalletOperationService operations;
     private final WalletPinService pins;
-    private final InventoryService inventory;
-    private final CurrentUserService currentUser;
-    private final PlatformTransactionManager transactionManager;
+    private final UserAccountsApi currentUser;
     private final WalletLedgerService ledger;
     private final WalletPaymentPrerequisites prerequisites;
+    private final WalletRecoveryDebtRepository debts;
+    private final WalletRiskService risks;
 
-    public PaymentResponse payOrder(@NotNull @Positive Long orderId, @NotNull @Valid PayOrderRequest request, String key) {
-        var user = currentUser.getCurrentUser();
-        if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
-        String fingerprint = operations.fingerprint("PAYMENT|" + orderId + "|" + request.isUseBonus());
-        var authorization = pins.authorize(request.getPin(), fingerprint);
-        return new TransactionTemplate(transactionManager).execute(status -> {
-            pins.lockAuthorizingUser(authorization);
-            // All order money paths use Order -> Wallet -> security/transactions -> holds -> inventory.
-            Order order = orders.findByIdAndUserIdForUpdate(orderId, user.getId())
-                    .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-            Wallet wallet = wallets.findByUserIdForUpdate(user.getId())
-                    .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
-            pins.requireAuthorization(authorization, wallet, fingerprint);
-            var existing = operations.find(wallet, key, fingerprint);
-            if (existing.isPresent()) return response(orderId, wallet.getCurrency(), existing.get());
-            if (order.getStatus() != OrderStatus.PENDING) throw new AppException(ErrorCode.ORDER_STATUS_INVALID);
-            if (wallet.getStatus() != WalletStatus.ACTIVE) throw new AppException(ErrorCode.WALLET_LOCKED);
-            prerequisites.validate(order, wallet.getCurrency());
-            BigDecimal total = order.getFinalAmount();
-            if (total == null || total.signum() < 0) throw new AppException(ErrorCode.INVALID_REQUEST);
-            BigDecimal bonus = request.isUseBonus() ? wallet.getBonusBalance().min(total) : BigDecimal.ZERO;
-            BigDecimal cash = total.subtract(bonus);
-            if (wallet.getBalance().compareTo(cash) < 0) throw new AppException(ErrorCode.WALLET_INSUFFICIENT_BALANCE);
-            WalletOperation operation = operations.create(wallet, key, fingerprint, TransactionType.PAYMENT, orderId.toString());
-            reserve(order, wallet, operation, WalletBalanceType.CASH, cash);
-            reserve(order, wallet, operation, WalletBalanceType.BONUS, bonus);
-            for (var item : order.getItems().stream().sorted(Comparator.comparing(value -> value.getProduct().getId())).toList()) {
-                inventory.confirmSale(item.getProduct().getId(), item.getQuantity());
-            }
-            order.setStatus(OrderStatus.PAID);
-            orders.saveAndFlush(order);
-            return response(orderId, wallet.getCurrency(), operation);
-        });
+    @Transactional(propagation=Propagation.NOT_SUPPORTED)
+    public PaymentPermit authorizePayment(Long orderId,PayOrderRequest request){
+        var user=currentUser.getCurrentUser();
+        if(!user.isActive())throw new AppException(ErrorCode.USER_LOCKED);
+        String fingerprint=operations.fingerprint("PAYMENT|"+orderId+"|"+request.isUseBonus());
+        return new Permit(user.getId(),orderId,request.isUseBonus(),fingerprint,pins.authorize(request.getPin(),fingerprint));
     }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void lockPayer(PaymentPermit value){
+        var permit=permit(value);
+        pins.lockAuthorizingUser(permit.authorization());
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new LockProof(permit));
+    }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public WalletPaymentsApi.Reservation reserve(OrderSnapshot order,PaymentPermit value,String key){
+        var permit=permit(value);
+        boolean payerLocked=org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations()
+                .stream().anyMatch(s->s instanceof LockProof proof&&proof.permit()==permit);
+        if(!payerLocked||!currentUser.getCurrentUserId().equals(permit.userId()))throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
+        if(!order.getId().equals(permit.orderId())||!order.getUserId().equals(permit.userId()))throw new AppException(ErrorCode.ACCESS_DENIED);
+        Wallet wallet=wallets.findByUserIdForUpdate(permit.userId()).orElseThrow(()->new AppException(ErrorCode.WALLET_NOT_FOUND));
+        pins.requireAuthorization(permit.authorization(),wallet,permit.fingerprint());
+        var existing=operations.find(wallet,key,permit.fingerprint());
+        if(existing.isPresent())return new WalletPaymentsApi.Reservation(response(order.getId(),wallet.getCurrency(),existing.get()),true);
+        if(order.getStatus()!=OrderStatus.PENDING)throw new AppException(ErrorCode.ORDER_STATUS_INVALID);
+        if(wallet.getStatus()!=WalletStatus.ACTIVE)throw new AppException(ErrorCode.WALLET_LOCKED);
+        if(!debts.outstanding(wallet.getUserId(),WalletBalanceType.CASH,wallet.getCurrency()).isEmpty())
+            throw new AppException(ErrorCode.WALLET_DEBT_OUTSTANDING);
+        prerequisites.validate(order,wallet.getCurrency());
+        BigDecimal total=order.getFinalAmount();
+        if(total==null||total.signum()<0)throw new AppException(ErrorCode.INVALID_REQUEST);
+        BigDecimal bonus=permit.useBonus()?wallet.getBonusBalance().min(total):BigDecimal.ZERO;
+        BigDecimal cash=total.subtract(bonus);
+        if(wallet.getBalance().compareTo(cash)<0)throw new AppException(ErrorCode.WALLET_INSUFFICIENT_BALANCE);
+        var operation=operations.create(wallet,key,permit.fingerprint(),TransactionType.PAYMENT,order.getId().toString());
+        risks.reserve(wallet,operation,total);
+        reserve(order,wallet,operation,WalletBalanceType.CASH,cash);
+        reserve(order,wallet,operation,WalletBalanceType.BONUS,bonus);
+        return new WalletPaymentsApi.Reservation(response(order.getId(),wallet.getCurrency(),operation),false);
+    }
+    private Permit permit(PaymentPermit value){
+        if(!(value instanceof Permit permit))throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
+        return permit;
+    }
+    private record Permit(Long userId,Long orderId,boolean useBonus,String fingerprint,WalletPinService.Authorization authorization) implements PaymentPermit{}
+    private record LockProof(Permit permit) implements org.springframework.transaction.support.TransactionSynchronization{}
 
-    private void reserve(Order order, Wallet wallet, WalletOperation operation, WalletBalanceType source, BigDecimal amount) {
+    private void reserve(OrderSnapshot order, Wallet wallet, WalletOperation operation, WalletBalanceType source, BigDecimal amount) {
         if (amount.signum() == 0) return;
         ledger.open(wallet);
-        var hold = holds.saveAndFlush(WalletHold.builder().wallet(wallet).order(order).referenceId(order.getId().toString())
+        var hold = holds.saveAndFlush(WalletHold.builder().wallet(wallet).orderId(order.getId()).referenceId(order.getId().toString())
                 .type(WalletHoldType.ORDER_PAYMENT).balanceType(source).amount(amount).build());
         if (source == WalletBalanceType.CASH) {
             wallet.setBalance(wallet.getBalance().subtract(amount));

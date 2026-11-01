@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.CategoryCustomerResponse;
+import com.example.demo.ecommerce.api.dto.CategoryCustomerResponse;
 import com.example.demo.ecommerce.entity.Category;
 import com.example.demo.ecommerce.repository.CategoryRepository;
 

@@ -1,10 +1,14 @@
 package com.example.demo.wallet.service;
+import com.example.demo.shared.logging.LogContext;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletStatus;
+import com.example.demo.wallet.api.WalletBalanceType;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -32,16 +36,21 @@ public class WalletBankWorker {
     private final WalletAlertService alerts;
     private final WalletSecurityRepository security;
     private final WalletRecoveryDebtRepository debts;
-    private final com.example.demo.user.repository.UserRepository users;
+    private final LinkedBankAccountRepository accounts;
+    private final WalletDebtService debtService;
+    private final com.example.demo.wallet.gateway.WalletBankClient bankClient;
+    private final com.example.demo.user.api.UserAccountsApi users;
 
     public WalletBankWorker(BankTransferRepository transfers, WalletRepository wallets,
             WalletTransactionRepository transactions, WalletHoldRepository holds, ObjectProvider<BankGateway> gateways,
             ObjectMapper json, PlatformTransactionManager transactionManager,
             WalletLedgerService ledger,
-            com.example.demo.user.repository.UserRepository users,
+            com.example.demo.user.api.UserAccountsApi users,
             WalletJobCursorService cursors, WalletAlertService alerts,
             WalletSecurityRepository security,
             WalletRecoveryDebtRepository debts,
+            LinkedBankAccountRepository accounts, WalletDebtService debtService,
+            com.example.demo.wallet.gateway.WalletBankClient bankClient,
             @Value("${wallet.bank.worker-enabled:true}") boolean enabled) {
         this.transfers = transfers;
         this.wallets = wallets;
@@ -55,11 +64,14 @@ public class WalletBankWorker {
         this.cursors=cursors; this.alerts=alerts;
         this.security=security;
         this.debts=debts;
+        this.accounts=accounts;
+        this.debtService=debtService;
+        this.bankClient=bankClient;
         this.database = new TransactionTemplate(transactionManager);
         this.database.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    @Scheduled(fixedDelayString = "${wallet.bank.poll-delay-ms:30000}",
+    @Scheduled(scheduler = "walletBankScheduler", fixedDelayString = "${wallet.bank.poll-delay-ms:30000}",
             initialDelayString = "${wallet.bank.initial-delay-ms:30000}")
     public synchronized void reconcile() {
         if (!enabled || gateways.getIfAvailable() == null) return;
@@ -81,7 +93,7 @@ public class WalletBankWorker {
 
     /** Internal worker entry point; intentionally has no HTTP endpoint. */
     public void process(Long transferId) {
-        try(var context=new com.example.demo.observability.LogContext(java.util.Map.of(
+        try(var context=new com.example.demo.shared.logging.LogContext(java.util.Map.of(
                 "jobRunId",java.util.UUID.randomUUID().toString(),"transferId",transferId.toString()))){
             processTransfer(transferId);
         }
@@ -94,7 +106,7 @@ public class WalletBankWorker {
         if (claim == null) return;
         BankGateway.Result result;
         try {
-            result = claim.lookupOnly() ? gateway.lookup(claim.command()) : gateway.resolve(claim.command());
+            result = bankClient.resolve(gateway, claim.command(), claim.lookupOnly());
         } catch (RuntimeException exception) {
             database.executeWithoutResult(status -> recordUnknown(transferId, claim.token(), "GATEWAY_UNKNOWN"));
             return;
@@ -112,11 +124,14 @@ public class WalletBankWorker {
         BankTransfer transfer = transfers.findByIdForUpdate(id).orElse(null);
         LocalDateTime now = LocalDateTime.now();
         if (transfer == null || transfer.isFinished() || transfer.getNextAttemptAt().isAfter(now)
-                || transfer.getLeaseUntil() != null && transfer.getLeaseUntil().isAfter(now)
-                || !transfer.getBankAccount().getProvider().equals(provider)) return null;
+                || transfer.getLeaseUntil() != null && transfer.getLeaseUntil().isAfter(now)) return null;
+        // A current locking read must follow the wallet lock. The earlier route query may have
+        // opened a REPEATABLE READ snapshot before a concurrent account revocation committed.
+        var account = accounts.findByIdAndWalletIdForUpdate(transfer.getBankAccount().getId(), wallet.getId()).orElseThrow();
+        if (!account.getProvider().equals(provider)) return null;
         boolean blocked = transaction.getType() == TransactionType.WITHDRAW
                 && (wallet.getStatus() != WalletStatus.ACTIVE || user == null || !user.isActive()
-                    || transfer.getBankAccount().getRevokedAt()!=null
+                    || account.getRevokedAt()!=null
                     || !debts.outstanding(wallet.getUserId(),WalletBalanceType.CASH,wallet.getCurrency()).isEmpty()
                     || pin!=null&&pin.getWithdrawalBlockedUntil()!=null&&pin.getWithdrawalBlockedUntil().isAfter(now));
         if (blocked && transfer.getDispatchStartedAt() == null && transfer.getAttempts() == 0) {
@@ -131,7 +146,7 @@ public class WalletBankWorker {
         if (transfer.getDispatchStartedAt() == null) transfer.setDispatchStartedAt(now);
         transaction.setStatus(TransactionStatus.PROCESSING);
         return new Claim(token, blocked, new BankGateway.Command(transfer.getMerchantReference(), transaction.getType(),
-                transaction.getAmount(), transaction.getWallet().getCurrency(), transfer.getBankAccount().getAccountToken()));
+                transaction.getAmount(), transaction.getWallet().getCurrency(), account.getAccountToken()));
     }
 
     private void apply(Long id, Claim claim, BankGateway.Result result) {
@@ -172,6 +187,7 @@ public class WalletBankWorker {
                 wallet.setBalance(wallet.getBalance().add(transaction.getAmount()));
                 ledger.move("bank:" + transaction.getId(), wallet.getCurrency(), "platform:BANK_CLEARING",
                         ledger.account(wallet, WalletBalanceType.CASH, false), transaction.getAmount());
+                debtService.collectAvailableCash(wallet, "deposit:" + transaction.getId());
             }
         } else {
             if (hold == null || hold.getRemainingAmount().compareTo(transaction.getAmount()) != 0) {

@@ -11,20 +11,20 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.FlashSaleItemRequest;
-import com.example.demo.ecommerce.dto.FlashSaleItemResponse;
+import com.example.demo.ecommerce.api.dto.FlashSaleItemRequest;
+import com.example.demo.ecommerce.api.dto.FlashSaleItemResponse;
 import com.example.demo.ecommerce.entity.FlashSale;
 import com.example.demo.ecommerce.entity.FlashSaleItem;
-import com.example.demo.ecommerce.entity.FlashSaleStatus;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
 import com.example.demo.ecommerce.entity.Product;
 import com.example.demo.ecommerce.mapper.FlashSaleItemMapper;
 import com.example.demo.ecommerce.repository.FlashSaleItemRepository;
 import com.example.demo.ecommerce.repository.FlashSaleRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

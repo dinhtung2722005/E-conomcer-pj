@@ -118,8 +118,9 @@ API quỹ và công nợ:
 - GET `/api/admin/wallet-ops/debts`: danh sách quản trị; tab Công nợ trên dashboard.
 - GET `/api/wallet/debts`: chỉ công nợ của tôi.
 - POST `/api/wallet/debts/repay`: `{amount,pin,reason}` và Idempotency-Key, trả
-  công nợ CASH từ CASH khả dụng. Không được trả quá nợ. Ví còn nợ CASH không rút
-  ra ngân hàng được; lệnh rút cũ chưa gửi cũng bị suspend, có thể hủy để trả nợ.
+  công nợ CASH từ CASH khả dụng. Không được trả quá nợ. Ví còn nợ CASH không mua
+  hàng hoặc rút ra ngân hàng được; lệnh rút cũ chưa gửi cũng bị suspend, có thể hủy để trả nợ.
+  Nạp thành công tự dùng CASH khả dụng trả nợ trước khi cho phép chi phần còn lại.
   Lệnh đã gửi chỉ được tra cứu kết quả. Vẫn có thể bù trừ nợ từ các lần quyết toán sau.
 
 ## Nâng cấp database có dữ liệu

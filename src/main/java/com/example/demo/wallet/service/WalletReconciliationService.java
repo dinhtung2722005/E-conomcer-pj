@@ -1,4 +1,7 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -8,10 +11,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.*;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.WalletReconciliationResponse;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.*;
+import com.example.demo.user.api.UserAccountsApi;
+import com.example.demo.wallet.api.dto.WalletReconciliationResponse;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +25,7 @@ public class WalletReconciliationService {
     private final WalletHoldRepository holds;
     private final WalletJournalRepository journals;
     private final WalletLedgerService ledger;
-    private final CurrentUserService currentUser;
+    private final UserAccountsApi currentUser;
 
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(isolation = Isolation.READ_COMMITTED)

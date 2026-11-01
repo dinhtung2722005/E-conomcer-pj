@@ -1,4 +1,8 @@
 package com.example.demo;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.math.BigDecimal;
@@ -26,12 +30,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.*;
-import com.example.demo.user.exception.*;
+import com.example.demo.shared.error.*;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.*;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
-import com.example.demo.wallet.entity.WalletSecurityEvent.*;
+import com.example.demo.wallet.api.SecurityAction;
+import com.example.demo.wallet.api.SecurityOutcome;
 import com.example.demo.wallet.repository.*;
 import com.example.demo.wallet.service.*;
 import tools.jackson.databind.ObjectMapper;
@@ -72,8 +77,8 @@ class WalletAuditLoggingIntegrationTests {
         for(int i=0;i<4;i++)assertThrows(AppException.class,()->pins.authorize("000000","test"));
         assertEquals(5,security.findById(walletId).orElseThrow().getFailedPinAttempts());
         var events=ownEvents();
-        assertEquals(5,events.stream().filter(e->e.getAction()==Action.PIN_VERIFY&&e.getOutcome()==Outcome.REJECTED).count());
-        assertEquals(1,events.stream().filter(e->e.getAction()==Action.PIN_LOCKED).count());
+        assertEquals(5,events.stream().filter(e->e.getAction()==SecurityAction.PIN_VERIFY&&e.getOutcome()==SecurityOutcome.REJECTED).count());
+        assertEquals(1,events.stream().filter(e->e.getAction()==SecurityAction.PIN_LOCKED).count());
         String serialized=json.writeValueAsString(events);
         assertFalse(serialized.contains("000000"));assertFalse(serialized.contains("password123"));
         assertTrue(events.stream().allMatch(e->MDC.get("requestId").equals(e.getRequestId())));
@@ -141,7 +146,7 @@ class WalletAuditLoggingIntegrationTests {
             assertEquals(400,http(path+"?walletId=-1",jwt.generateToken(admin),null).statusCode());
             assertEquals(400,http(path+"?from=2026-10-30T00:00:00&to=2026-10-29T00:00:00",jwt.generateToken(admin),null).statusCode());
         }
-        assertTrue(securityEvents.findAll().stream().anyMatch(e->e.getAction()==Action.ACCESS_DENIED&&owner.getId().equals(e.getActorId())&&"forbidden-request".equals(e.getRequestId())));
+        assertTrue(securityEvents.findAll().stream().anyMatch(e->e.getAction()==SecurityAction.ACCESS_DENIED&&owner.getId().equals(e.getActorId())&&"forbidden-request".equals(e.getRequestId())));
     }
 
     @Test void restrictedDatabaseAccountCanAppendButCannotUpdateDeleteOrDropAudit()throws Exception{

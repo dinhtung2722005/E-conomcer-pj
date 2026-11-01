@@ -5,17 +5,17 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.CategoryRequest;
-import com.example.demo.ecommerce.dto.CategoryResponse;
+import com.example.demo.ecommerce.api.dto.CategoryRequest;
+import com.example.demo.ecommerce.api.dto.CategoryResponse;
 import com.example.demo.ecommerce.entity.Category;
 import com.example.demo.ecommerce.entity.Product;
 import com.example.demo.ecommerce.mapper.CategoryMapper;
 import com.example.demo.ecommerce.repository.CategoryRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

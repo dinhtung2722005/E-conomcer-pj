@@ -1,6 +1,6 @@
 package com.example.demo.ecommerce.mapper;
 
-import com.example.demo.ecommerce.dto.FlashSaleResponse;
+import com.example.demo.ecommerce.api.dto.FlashSaleResponse;
 import com.example.demo.ecommerce.entity.FlashSale;
 import org.mapstruct.Mapper;
 

@@ -1,4 +1,5 @@
 package com.example.demo.observability;
+import com.example.demo.shared.logging.LogSanitizer;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;

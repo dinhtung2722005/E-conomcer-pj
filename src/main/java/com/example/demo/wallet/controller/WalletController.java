@@ -10,17 +10,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.wallet.dto.WalletFreezeRequest;
-import com.example.demo.wallet.dto.WalletHistoryQuery;
-import com.example.demo.wallet.dto.WalletHoldQuery;
-import com.example.demo.wallet.dto.WalletHoldResponse;
-import com.example.demo.wallet.dto.WalletResponse;
-import com.example.demo.wallet.dto.WalletTransactionResponse;
-import com.example.demo.wallet.dto.ChangePinRequest;
-import com.example.demo.wallet.dto.SetupPinRequest;
-import com.example.demo.wallet.dto.WalletSecurityResponse;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletHistoryQuery;
+import com.example.demo.wallet.api.dto.WalletHoldQuery;
+import com.example.demo.wallet.api.dto.WalletHoldResponse;
+import com.example.demo.wallet.api.dto.WalletResponse;
+import com.example.demo.wallet.api.dto.WalletTransactionResponse;
+import com.example.demo.wallet.api.dto.ChangePinRequest;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
+import com.example.demo.wallet.api.dto.WalletSecurityResponse;
 import com.example.demo.wallet.service.WalletPinService;
 import com.example.demo.wallet.service.WalletService;
 

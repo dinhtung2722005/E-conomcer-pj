@@ -1,11 +1,17 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.web.PageQuery;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
 import org.springframework.validation.annotation.Validated;
-import com.example.demo.user.dto_request.*;
-import com.example.demo.user.exception.*;
-import com.example.demo.user.service.CurrentUserService;
+import com.example.demo.user.api.dto.*;
+import com.example.demo.shared.web.*;
+import com.example.demo.shared.error.*;
+import com.example.demo.user.api.UserAccountsApi;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import jakarta.validation.Valid;
@@ -15,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class WalletNotificationService {
     public record Response(Long id,String title,String message,Long transactionId,LocalDateTime createdAt,LocalDateTime readAt){}
     private final WalletNotificationRepository notifications;private final WalletRepository wallets;
-    private final WalletTransactionRepository transactions;private final CurrentUserService currentUser;
+    private final WalletTransactionRepository transactions;private final UserAccountsApi currentUser;
     @Transactional public void publishTransaction(Long id){
         Long walletId=transactions.findWalletId(id).orElseThrow();var wallet=wallets.findByIdForUpdate(walletId).orElseThrow();
         var t=transactions.findByIdAndWalletIdForUpdate(id,walletId).orElseThrow();if(t.isNotificationPublished())return;

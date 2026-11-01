@@ -6,10 +6,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.ProductCustomerResponse;
+import com.example.demo.ecommerce.api.dto.ProductCustomerResponse;
 import com.example.demo.ecommerce.service.CustomerProductService;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.PageResponse;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.shared.web.PageResponse;
 
 import lombok.RequiredArgsConstructor;
 

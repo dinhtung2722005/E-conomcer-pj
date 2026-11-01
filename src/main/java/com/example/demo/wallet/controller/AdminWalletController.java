@@ -1,4 +1,5 @@
 package com.example.demo.wallet.controller;
+import com.example.demo.wallet.api.dto.WalletReconciliationResponse;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -7,9 +8,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.wallet.dto.WalletFreezeRequest;
-import com.example.demo.wallet.dto.WalletResponse;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletResponse;
 import com.example.demo.wallet.service.WalletService;
 
 import jakarta.validation.Valid;
@@ -24,7 +25,7 @@ public class AdminWalletController {
     private final com.example.demo.wallet.service.WalletReconciliationService reconciliation;
 
     @org.springframework.web.bind.annotation.GetMapping("/{id}/reconciliation")
-    public ApiResponse<com.example.demo.wallet.dto.WalletReconciliationResponse> reconcile(@PathVariable Long id) {
+    public ApiResponse<com.example.demo.wallet.api.dto.WalletReconciliationResponse> reconcile(@PathVariable Long id) {
         return new ApiResponse<>(200, "Thành công", reconciliation.inspectAsAdmin(id));
     }
 

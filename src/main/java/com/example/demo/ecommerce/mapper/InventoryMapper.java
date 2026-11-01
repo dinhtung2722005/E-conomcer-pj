@@ -3,7 +3,7 @@ package com.example.demo.ecommerce.mapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import com.example.demo.ecommerce.dto.InventoryResponse;
+import com.example.demo.ecommerce.api.dto.InventoryResponse;
 import com.example.demo.ecommerce.entity.Inventory;
 
 @Mapper(componentModel = "spring")

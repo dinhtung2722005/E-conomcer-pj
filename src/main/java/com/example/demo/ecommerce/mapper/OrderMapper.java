@@ -7,8 +7,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ObjectFactory;
 
-import com.example.demo.ecommerce.dto.OrderItemResponse;
-import com.example.demo.ecommerce.dto.OrderResponse;
+import com.example.demo.ecommerce.api.dto.OrderItemResponse;
+import com.example.demo.ecommerce.api.dto.OrderResponse;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderItem;
 

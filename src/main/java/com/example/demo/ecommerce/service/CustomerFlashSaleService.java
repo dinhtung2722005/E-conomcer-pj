@@ -6,10 +6,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.FlashSaleCustomerResponse;
-import com.example.demo.ecommerce.dto.FlashSaleItemCustomerResponse;
+import com.example.demo.ecommerce.api.dto.FlashSaleCustomerResponse;
+import com.example.demo.ecommerce.api.dto.FlashSaleItemCustomerResponse;
 import com.example.demo.ecommerce.entity.FlashSale;
-import com.example.demo.ecommerce.entity.FlashSaleStatus;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
 import com.example.demo.ecommerce.repository.FlashSaleRepository;
 
 import lombok.RequiredArgsConstructor;

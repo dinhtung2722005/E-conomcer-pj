@@ -2,7 +2,7 @@ package com.example.demo.ecommerce.mapper;
 
 import org.mapstruct.Mapper;
 
-import com.example.demo.ecommerce.dto.VoucherResponse;
+import com.example.demo.ecommerce.api.dto.VoucherResponse;
 import com.example.demo.ecommerce.entity.Voucher;
 
 

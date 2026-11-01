@@ -17,12 +17,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.ChangePasswordRequest;
-import com.example.demo.user.dto_request.UserProfileResponse;
-import com.example.demo.user.dto_request.UserProfileUpdateRequest;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.user.api.dto.ChangePasswordRequest;
+import com.example.demo.user.api.dto.UserProfileResponse;
+import com.example.demo.user.api.dto.UserProfileUpdateRequest;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.security.JwtUtils;
 import com.example.demo.user.service.AuthService;
 import com.example.demo.user.service.CloudinaryService;

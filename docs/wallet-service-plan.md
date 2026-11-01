@@ -23,7 +23,7 @@ Dựa trên luồng ngân hàng → ví → thanh toán đơn → quyết toán/
   liên tiếp. Chưa gộp thành một transaction checkout dài trong bản đầu.
 - Dùng PIN cho bản đầu. Sinh trắc học, khôi phục PIN và tăng mức xác thực được
   bổ sung khi có cơ chế xác minh phù hợp, không giả lập bằng cờ từ frontend.
-- API lấy người dùng qua `CurrentUserService`; response dùng `ApiResponse<T>`
+- API ví lấy người dùng qua `UserAccountsApi`; response dùng `ApiResponse<T>`
   và `PageResponse<T>` hiện có. Không trả trực tiếp entity JPA.
 
 ## 2. Các service
@@ -33,7 +33,7 @@ Dựa trên luồng ngân hàng → ví → thanh toán đơn → quyết toán/
 | `WalletService` | Khởi tạo ví, đọc số dư/lịch sử/khoản giữ, đóng băng ví theo quyền | `initializeWallet`, `getMyWallet`, `getHistory`, `getTransaction`, `getHolds`, `freezeWallet`, `unfreezeWallet` |
 | `WalletSecurityService` | Thiết lập/đổi PIN, hash/xác minh PIN, giới hạn nhập sai | `setupPin`, `changePin`, `verifyForOperation`, `getSecurityStatus` |
 | `WalletFundingService` | Điều phối nạp/rút và kết quả ngân hàng | `createTopUp`, `requestWithdrawal`, `handleVerifiedBankEvent` |
-| `WalletPaymentService` | Thanh toán đơn bằng CASH/BONUS; số tiền lấy từ đơn | `payOrder` |
+| `OrderPaymentApplicationService` / `WalletPaymentService` | Điều phối thanh toán qua API; ví giữ CASH/BONUS theo snapshot đã khóa | `payOrder` / `authorizePayment`, `reserve` |
 | `WalletRefundService` | Hoàn đơn đã trả tiền, hoàn một phần, trả đúng nguồn tiền | `refundCancelledOrder`, `refundApprovedReturn` |
 | `WalletSettlementService` | Quyết toán khoản giữ, doanh thu người bán và phí sàn | `settleCompletedOrder` |
 | `WalletReconciliationService` | Tra cứu kết quả chưa rõ và kiểm tra sai lệch | `reconcileBankOperations`, `reconcileHeldBalances` |
@@ -56,7 +56,7 @@ Các phần hỗ trợ không mở thành API điều chỉnh số dư tự do:
 
 ## 3. DTO đầu vào
 
-Đặt trong `com.example.demo.wallet.dto`, gom theo nghiệp vụ nếu số file tăng.
+Đặt trong `com.example.demo.wallet.api.dto`, gom theo nghiệp vụ nếu số file tăng.
 Các thao tác thay đổi tiền nhận `Idempotency-Key` từ header; khóa này không phải
 mật khẩu và không thay thế xác thực. Khóa của nghiệp vụ tự động được backend sinh
 từ sự kiện/case gốc, không lấy tùy ý từ người gọi.
@@ -95,7 +95,7 @@ request thành một số tiền khác mà người dùng chưa xác nhận.
 | `RefundResponse` | Mã case hoàn, orderId, phần CASH/BONUS đã hoàn, các transactionId và trạng thái |
 | `WalletSecurityResponse` | `pinConfigured`, `pinLockedUntil`, `pinChangedAt` |
 
-Các DTO trong hai bảng đã có trong `wallet/dto`. `PaymentResponse` dùng
+Các DTO trong hai bảng đã có trong `wallet/api/dto`. `PaymentResponse` dùng
 `orderStatus` cho trạng thái đơn, danh sách ID mặc định rỗng để hỗ trợ đơn 0 đồng.
 `TopUpInstructionsResponse` chứa thông tin tài khoản nhận tiền/nội dung chuyển
 khoản/QR do adapter chuẩn hóa; `BankAccountSummaryResponse` chỉ chứa thông tin
@@ -247,7 +247,7 @@ sử dụng bằng chứng từ adapter sau khi chọn được đối tác.
 ## 8. Thứ tự triển khai và điều kiện nghiệm thu
 
 1. **Nền tảng:** chốt quy tắc tiền, migration, fingerprint, mã lỗi; DTO/mapper,
-   WalletService đọc/khởi tạo, phân quyền theo CurrentUserService, PIN và audit khóa.
+   WalletService đọc/khởi tạo, phân quyền qua UserAccountsApi, PIN và audit khóa.
 2. **Nạp/rút:** linked bank account, BankGateway, outbox, callback đã xác minh và
    các transaction cập nhật tiền; gateway test phục vụ kiểm thử trước adapter thật.
 3. **Thanh toán/hủy:** PAYMENT/hold, checkout PENDING, PAID đúng luồng, hủy hoàn

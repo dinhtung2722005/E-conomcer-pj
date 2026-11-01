@@ -11,10 +11,10 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.example.demo.wallet.entity.WalletBalanceType;
+import com.example.demo.wallet.api.WalletBalanceType;
 import com.example.demo.wallet.entity.WalletHold;
-import com.example.demo.wallet.entity.WalletHoldStatus;
-import com.example.demo.wallet.entity.WalletHoldType;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletHoldType;
 
 import jakarta.persistence.LockModeType;
 
@@ -44,7 +44,7 @@ public interface WalletHoldRepository extends JpaRepository<WalletHold, Long>, o
 
     /** Lock both CASH/BONUS holds in a consistent order before canceling or settling an order. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT h FROM WalletHold h WHERE h.wallet.id = :walletId AND h.order.id = :orderId ORDER BY h.id")
+    @Query("SELECT h FROM WalletHold h WHERE h.wallet.id = :walletId AND h.orderId = :orderId ORDER BY h.id")
     List<WalletHold> findByWalletIdAndOrderIdForUpdate(@Param("walletId") Long walletId, @Param("orderId") Long orderId);
 
     Page<WalletHold> findByWalletIdAndStatusInOrderByCreatedAtDescIdDesc(Long walletId,

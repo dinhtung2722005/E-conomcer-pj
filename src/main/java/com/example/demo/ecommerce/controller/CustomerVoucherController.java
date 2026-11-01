@@ -9,10 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.VoucherCustomerResponse;
+import com.example.demo.ecommerce.api.dto.VoucherCustomerResponse;
 import com.example.demo.ecommerce.service.CustomerVoucherService;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.service.CurrentUserService;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.user.api.UserAccountsApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class CustomerVoucherController {
 
     private final CustomerVoucherService customerVoucherService;
-    private final CurrentUserService currentUserService;
+    private final UserAccountsApi currentUserService;
 
     /** Danh sách voucher công khai đang có hiệu lực. */
     @GetMapping

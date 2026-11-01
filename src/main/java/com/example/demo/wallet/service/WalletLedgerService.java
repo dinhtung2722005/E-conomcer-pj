@@ -1,4 +1,6 @@
 package com.example.demo.wallet.service;
+import com.example.demo.shared.logging.LogContext;
+import com.example.demo.wallet.api.WalletBalanceType;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -80,7 +82,7 @@ public class WalletLedgerService {
         org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
             new org.springframework.transaction.support.TransactionSynchronization(){
                 @Override public void afterCommit(){
-                    try(var scope=new com.example.demo.observability.LogContext(context)){
+                    try(var scope=new com.example.demo.shared.logging.LogContext(context)){
                         log.atInfo().addKeyValue("event","WALLET_JOURNAL_COMMITTED")
                                 .addKeyValue("walletIds",walletIds).addKeyValue("currency",currency)
                                 .log("Wallet journal committed");

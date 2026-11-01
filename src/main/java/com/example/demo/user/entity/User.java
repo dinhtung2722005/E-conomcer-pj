@@ -1,4 +1,5 @@
 package com.example.demo.user.entity;
+import com.example.demo.user.api.UserRole;
 
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;

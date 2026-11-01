@@ -1,4 +1,5 @@
 package com.example.demo.observability;
+import com.example.demo.application.observability.RequestLoggingFilter;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -13,7 +14,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.MDC;
 import org.springframework.mock.web.*;
-import com.example.demo.wallet.entity.WalletSecurityEvent.Action;
+import com.example.demo.wallet.api.SecurityAction;
 import com.example.demo.wallet.service.WalletSecurityEventService;
 import tools.jackson.databind.ObjectMapper;
 
@@ -60,14 +61,14 @@ class SafeLoggingTests {
         var denied = new MockHttpServletResponse();
         filter.doFilter(second, denied, (req,res) -> denied.setStatus(403));
         assertEquals("valid-request-123", denied.getHeader("X-Request-Id"));
-        verify(events).rejection(7L, null, Action.ACCESS_DENIED, "HTTP_403", null);
+        verify(events).rejection(7L, null, SecurityAction.ACCESS_DENIED, "HTTP_403", null);
         assertNull(MDC.get("requestId"));
     }
 
     @Test void auditFailureDoesNotTurnDeniedRequestIntoSuccess() throws Exception {
         var events = mock(WalletSecurityEventService.class);
         doThrow(new IllegalStateException("private database failure")).when(events)
-                .rejection(null, null, Action.AUTHENTICATION_FAILED, "HTTP_401", null);
+                .rejection(null, null, SecurityAction.AUTHENTICATION_FAILED, "HTTP_401", null);
         var response = new MockHttpServletResponse();
         new RequestLoggingFilter(events).doFilter(new MockHttpServletRequest("GET", "/api/wallet"), response,
                 (req,res) -> response.setStatus(401));

@@ -34,6 +34,14 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-mysql</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 		<dependency>
@@ -115,6 +123,21 @@
     </dependency>
 	</dependencies>
 
+	<profiles>
+		<profile>
+			<id>database-migrations</id>
+			<build><plugins><plugin>
+				<groupId>org.flywaydb</groupId><artifactId>flyway-maven-plugin</artifactId><version>${flyway.version}</version>
+				<configuration>
+					<url>${env.FLYWAY_URL}</url><user>${env.FLYWAY_USER}</user><password>${env.FLYWAY_PASSWORD}</password>
+					<cleanDisabled>true</cleanDisabled><baselineOnMigrate>false</baselineOnMigrate><baselineVersion>1</baselineVersion>
+					<locations><location>classpath:db/migration</location></locations>
+					<placeholders><legacyWalletTimeZone>+07:00</legacyWalletTimeZone></placeholders>
+				</configuration>
+				<dependencies><dependency><groupId>org.flywaydb</groupId><artifactId>flyway-mysql</artifactId><version>${flyway.version}</version></dependency></dependencies>
+			</plugin></plugins></build>
+		</profile>
+	</profiles>
 	<build>
         <plugins>
             <plugin>

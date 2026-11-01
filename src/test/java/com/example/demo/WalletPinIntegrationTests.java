@@ -18,16 +18,16 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.demo.support.IsolatedMySqlDatabase;
-import com.example.demo.user.dto_request.UserCreationRequest;
+import com.example.demo.user.api.dto.UserCreationRequest;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
 import com.example.demo.user.service.AuthService;
-import com.example.demo.wallet.dto.ChangePinRequest;
-import com.example.demo.wallet.dto.SetupPinRequest;
+import com.example.demo.wallet.api.dto.ChangePinRequest;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
 import com.example.demo.wallet.repository.WalletRepository;
 import com.example.demo.wallet.repository.WalletSecurityRepository;
 import com.example.demo.wallet.service.WalletPinService;
@@ -37,8 +37,9 @@ import com.example.demo.wallet.service.WalletService;
 @ContextConfiguration(initializers = IsolatedMySqlDatabase.class)
 class WalletPinIntegrationTests {
     @Autowired WalletPinService pins;
-    @Autowired WalletService walletService;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean WalletService walletService;
     @Autowired AuthService auth;
+    @Autowired com.example.demo.user.api.RegistrationUseCase registration;
     @Autowired UserRepository users;
     @Autowired WalletRepository wallets;
     @Autowired WalletSecurityRepository security;
@@ -120,11 +121,30 @@ class WalletPinIntegrationTests {
     @Test
     void registrationCreatesExactlyOneWallet() {
         String name = "reg_" + UUID.randomUUID().toString().replace("-", "");
-        auth.register(new UserCreationRequest(name, name + "@example.test", "password123"));
+        registration.register(new UserCreationRequest(name, name + "@example.test", "password123"));
         User created = users.findByUsername(name).orElseThrow();
         assertTrue(wallets.existsByUserId(created.getId()));
         assertError(ErrorCode.USERNAME_EXISTED,
-                () -> auth.register(new UserCreationRequest(name, name + "@example.test", "password123")));
+                () -> registration.register(new UserCreationRequest(name, name + "@example.test", "password123")));
+    }
+
+    @Test void walletProvisioningFailureRollsBackNewAccount(){
+        String name="failed_reg_"+UUID.randomUUID().toString().replace("-","");
+        long before=wallets.count();
+        WalletService target=org.springframework.test.util.AopTestUtils.getUltimateTargetObject(walletService);
+        org.mockito.Mockito.doThrow(new AppException(ErrorCode.WALLET_NOT_FOUND)).when(target).initializeWallet(org.mockito.ArgumentMatchers.anyLong());
+        try{
+            assertThrows(AppException.class,()->registration.register(new UserCreationRequest(name,name+"@example.test","password123")));
+            assertFalse(users.existsByUsername(name));assertEquals(before,wallets.count());
+        }finally{org.mockito.Mockito.reset(target);}
+    }
+
+    @Test void callerRollbackRemovesBothAccountAndWallet(){
+        String name="rollback_reg_"+UUID.randomUUID().toString().replace("-","");long before=wallets.count();
+        assertThrows(IllegalStateException.class,()->new TransactionTemplate(transactionManager).executeWithoutResult(tx->{
+            registration.register(new UserCreationRequest(name,name+"@example.test","password123"));throw new IllegalStateException("Caller failed");
+        }));
+        assertFalse(users.existsByUsername(name));assertEquals(before,wallets.count());
     }
 
     private SetupPinRequest setup(String password) {

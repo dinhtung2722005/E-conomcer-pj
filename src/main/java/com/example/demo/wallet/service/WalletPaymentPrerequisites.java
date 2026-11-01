@@ -3,16 +3,16 @@ package com.example.demo.wallet.service;
 import java.math.BigDecimal;
 import java.util.HashSet;
 import org.springframework.stereotype.Component;
-import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.ecommerce.api.OrderSnapshot;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.wallet.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 
 @Component @RequiredArgsConstructor
 public class WalletPaymentPrerequisites {
     private final WalletRepository wallets;
-    public void validate(Order order, String currency) {
+    public void validate(OrderSnapshot order, String currency) {
         BigDecimal allocated = BigDecimal.ZERO;
         var sellerIds = new HashSet<Long>();
         for (var item : order.getItems()) {

@@ -19,7 +19,10 @@ Bốn số dư tách biệt, không cộng tiền đang giữ vào tiền khả 
 `currency` mặc định `VND`; precision/scale giữ `19,4` như các entity tiền hiện có.
 Quy tắc làm tròn và số chữ số thập phân được phép theo tiền tệ thuộc service.
 
-`userId` giữ API hiện có; association `user` chỉ đọc để tạo foreign key tới `users`.
+`userId` tham chiếu tài khoản; ví không giữ association JPA tới entity `User`.
+Các liên kết chéo module dùng `userId`, `orderId`, `orderItemId`, `actorId`, còn
+foreign key ở database vẫn được giữ. Schema mới cần bổ sung các khóa ngoại theo
+[hướng dẫn ranh giới module](module-architecture.md#database).
 Không chuyển quyền sở hữu ví hoặc thay tiền tệ sau khi tạo.
 
 ## Luồng tiền
@@ -117,9 +120,10 @@ service không dùng delete để xóa lịch sử tài chính hoặc hold đã 
 
 - `initializeWallet(userId)` là hook nội bộ cho ứng dụng/đăng ký, không bind userId
   từ HTTP khách. Khóa user trước rồi đọc/khởi tạo ví bằng current read để tránh
-  tạo trùng khi hai yêu cầu đồng thời. AuthService gọi trong transaction đăng ký.
+  tạo trùng khi hai yêu cầu đồng thời. RegistrationApplicationService điều phối
+  tạo tài khoản và ví trong cùng transaction qua API của hai module.
 - `initializeMyWallet()`, `getMyWallet()`, `getHistory(query)`, `getTransaction(id)`
-  và `getHolds(query)` lấy chủ sở hữu từ CurrentUserService. GET không tự tạo ví.
+  và `getHolds(query)` lấy chủ sở hữu qua UserAccountsApi. GET không tự tạo ví.
 - `freezeMyWallet(request)` chỉ khóa ví hiện tại. `freezeWallet(id, request)` và
   `unfreezeWallet(id, request)` yêu cầu ADMIN ở tầng method và kiểm tra lại vai
   trò trong DB. User không tự mở khóa. User bị vô hiệu hóa không thao tác được.

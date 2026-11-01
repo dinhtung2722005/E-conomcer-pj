@@ -1,8 +1,19 @@
 package com.example.demo.wallet.controller;
+import com.example.demo.wallet.api.AlertStatus;
+import com.example.demo.wallet.api.RefundStatus;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.dto.WalletOpsDtos;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletAuditQuery;
+import com.example.demo.wallet.api.dto.WalletAlertReviewRequest;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
-import com.example.demo.user.dto_request.*;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.user.api.dto.*;
+import com.example.demo.shared.web.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.service.WalletOpsService;
 import jakarta.validation.Valid;
@@ -14,9 +25,9 @@ public class WalletOpsController {
     @GetMapping("/summary") public ApiResponse<WalletOpsDtos.Summary> summary(){return ok(service.summary());}
     @GetMapping("/transfers") public ApiResponse<PageResponse<WalletOpsDtos.Transfer>> transfers(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) TransactionStatus status,@RequestParam(defaultValue="false") boolean overdue){return ok(service.transfers(page,status,overdue));}
     @GetMapping("/holds") public ApiResponse<PageResponse<WalletOpsDtos.Held>> holds(@Valid @ModelAttribute PageQuery page){return ok(service.holds(page));}
-    @GetMapping("/refunds") public ApiResponse<PageResponse<WalletOpsDtos.Refund>> refunds(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) WalletRefundCase.Status status){return ok(service.refunds(page,status));}
+    @GetMapping("/refunds") public ApiResponse<PageResponse<WalletOpsDtos.Refund>> refunds(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) RefundStatus status){return ok(service.refunds(page,status));}
     @GetMapping("/settlements") public ApiResponse<PageResponse<WalletOpsDtos.Settlement>> settlements(@Valid @ModelAttribute PageQuery page){return ok(service.settlements(page));}
-    @GetMapping("/alerts") public ApiResponse<PageResponse<WalletOpsDtos.Alert>> alerts(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) WalletAlert.Status status){return ok(service.alerts(page,status));}
+    @GetMapping("/alerts") public ApiResponse<PageResponse<WalletOpsDtos.Alert>> alerts(@Valid @ModelAttribute PageQuery page,@RequestParam(required=false) AlertStatus status){return ok(service.alerts(page,status));}
     @GetMapping("/audit") public ApiResponse<PageResponse<WalletOpsDtos.Audit>> audit(@Valid @ModelAttribute WalletAuditQuery query){return ok(service.audit(query));}
     @GetMapping("/security-events") public ApiResponse<PageResponse<WalletOpsDtos.SecurityEvent>> securityEvents(@Valid @ModelAttribute WalletAuditQuery query){return ok(service.securityEvents(query));}
     @PostMapping("/alerts/{id}/review") public ApiResponse<WalletOpsDtos.Alert> review(@PathVariable Long id,@Valid @RequestBody WalletAlertReviewRequest request){return ok(service.review(id,request));}

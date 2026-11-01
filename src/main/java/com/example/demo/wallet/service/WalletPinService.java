@@ -13,18 +13,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import com.example.demo.user.entity.User;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
-import com.example.demo.user.repository.UserRepository;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.ChangePinRequest;
-import com.example.demo.wallet.dto.SetupPinRequest;
-import com.example.demo.wallet.dto.WalletSecurityResponse;
+import com.example.demo.user.api.UserAccount;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.user.api.UserAccountsApi;
+
+import com.example.demo.wallet.api.dto.ChangePinRequest;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
+import com.example.demo.wallet.api.dto.WalletSecurityResponse;
 import com.example.demo.wallet.entity.Wallet;
 import com.example.demo.wallet.entity.WalletSecurity;
-import com.example.demo.wallet.entity.WalletSecurityEvent.Action;
-import com.example.demo.wallet.entity.WalletSecurityEvent.Outcome;
+import com.example.demo.wallet.api.SecurityAction;
+import com.example.demo.wallet.api.SecurityOutcome;
 import com.example.demo.wallet.mapper.WalletMapper;
 import com.example.demo.wallet.repository.WalletRepository;
 import com.example.demo.wallet.repository.WalletSecurityRepository;
@@ -37,10 +37,10 @@ import jakarta.validation.constraints.Pattern;
 @Service
 @Validated
 public class WalletPinService {
-    private final UserRepository users;
+    private final UserAccountsApi users;
     private final WalletRepository wallets;
     private final WalletSecurityRepository security;
-    private final CurrentUserService currentUser;
+    private final UserAccountsApi currentUser;
     private final PasswordEncoder encoder;
     private final WalletMapper mapper;
     private final TransactionTemplate transaction;
@@ -48,8 +48,8 @@ public class WalletPinService {
     private final Duration lockDuration;
     private final WalletSecurityEventService events;
 
-    public WalletPinService(UserRepository users, WalletRepository wallets, WalletSecurityRepository security,
-            CurrentUserService currentUser, PasswordEncoder encoder, WalletMapper mapper,
+    public WalletPinService(UserAccountsApi users, WalletRepository wallets, WalletSecurityRepository security,
+            UserAccountsApi currentUser, PasswordEncoder encoder, WalletMapper mapper,
             PlatformTransactionManager transactionManager, WalletSecurityEventService events,
             @Value("${wallet.pin.max-attempts:5}") int maxAttempts,
             @Value("${wallet.pin.lock-duration:PT15M}") Duration lockDuration) {
@@ -71,7 +71,7 @@ public class WalletPinService {
 
     @Transactional(readOnly = true)
     public WalletSecurityResponse getMySecurity() {
-        User user = currentUser.getCurrentUser();
+        UserAccount user = currentUser.getCurrentUser();
         if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
         Wallet wallet = wallets.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
@@ -80,11 +80,11 @@ public class WalletPinService {
     }
 
     public WalletSecurityResponse setupPin(@NotNull @Valid SetupPinRequest request) {
-        return withSecurity(Action.PIN_SETUP, context -> {
+        return withSecurity(SecurityAction.PIN_SETUP, context -> {
             WalletSecurity row = context.security();
             if (row.getPinHash() != null) return Result.failure(ErrorCode.WALLET_PIN_ALREADY_CONFIGURED);
             if (isLocked(row)) return Result.failure(ErrorCode.WALLET_PIN_LOCKED);
-            if (!encoder.matches(request.getCurrentPassword(), context.user().getPassword())) {
+            if (!users.matchesPassword(context.user().getId(), request.getCurrentPassword())) {
                 return failedAttempt(row, ErrorCode.OLD_PASSWORD_INCORRECT);
             }
             changeHash(row, request.getNewPin());
@@ -94,7 +94,7 @@ public class WalletPinService {
     }
 
     public WalletSecurityResponse changePin(@NotNull @Valid ChangePinRequest request) {
-        return withSecurity(Action.PIN_CHANGE, context -> {
+        return withSecurity(SecurityAction.PIN_CHANGE, context -> {
             WalletSecurity row = context.security();
             ErrorCode error = checkPin(row, request.getCurrentPin());
             if (error != null) return Result.failure(error);
@@ -109,7 +109,7 @@ public class WalletPinService {
     /** Server-only authorization. Never expose this object as a client supplied token or boolean. */
     public Authorization authorize(@NotNull @Pattern(regexp = "[0-9]{6}") String pin,
             @NotNull String operation) {
-        return withSecurity(Action.PIN_VERIFY, context -> {
+        return withSecurity(SecurityAction.PIN_VERIFY, context -> {
             WalletSecurity row = context.security();
             ErrorCode error = checkPin(row, pin);
             if (error != null) return Result.failure(error);
@@ -119,12 +119,12 @@ public class WalletPinService {
         });
     }
 
-    /** Must be the first lock of a financial transaction: User -> Order -> Wallet. */
+    /** Must be the first lock of a financial transaction: UserAccount -> Order -> Wallet. */
     void lockAuthorizingUser(Authorization authorization) {
         if (authorization == null || !currentUser.getCurrentUserId().equals(authorization.userId)) {
             throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
         }
-        User user = users.findByIdForUpdate(authorization.userId)
+        UserAccount user = users.findByIdForUpdate(authorization.userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
         if (user.getTokenVersion() != authorization.tokenVersion) throw new AppException(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED);
@@ -202,12 +202,12 @@ public class WalletPinService {
         row.setPinLockedUntil(null);
     }
 
-    private <T> T withSecurity(Action event, Function<Context, Result<T>> action) {
+    private <T> T withSecurity(SecurityAction event, Function<Context, Result<T>> action) {
         Long userId = currentUser.getCurrentUserId();
         Result<T> result;
         try {
             result = transaction.execute(status -> {
-            User user = users.findByIdForUpdate(userId)
+            UserAccount user = users.findByIdForUpdate(userId)
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             if (!user.isActive()) throw new AppException(ErrorCode.USER_LOCKED);
             if (user.getTokenVersion() != currentUser.getCurrentPrincipal().getTokenVersion()) {
@@ -219,10 +219,10 @@ public class WalletPinService {
                     .orElseGet(() -> security.saveAndFlush(WalletSecurity.builder().wallet(wallet).build()));
             boolean previouslyLocked = row.getPinLockedUntil() != null && row.getPinLockedUntil().isAfter(LocalDateTime.now());
             Result<T> outcome = action.apply(new Context(user, wallet, row));
-            events.record(userId, wallet.getId(), event, outcome.error() == null ? Outcome.SUCCESS : Outcome.REJECTED,
+            events.record(userId, wallet.getId(), event, outcome.error() == null ? SecurityOutcome.SUCCESS : SecurityOutcome.REJECTED,
                     outcome.error() == null ? "OK" : outcome.error().name(), null);
             if (!previouslyLocked && outcome.error() == ErrorCode.WALLET_PIN_LOCKED) {
-                events.record(userId, wallet.getId(), Action.PIN_LOCKED, Outcome.REJECTED, "ATTEMPT_LIMIT", null);
+                events.record(userId, wallet.getId(), SecurityAction.PIN_LOCKED, SecurityOutcome.REJECTED, "ATTEMPT_LIMIT", null);
             }
             return outcome;
             });
@@ -235,7 +235,7 @@ public class WalletPinService {
         return result.value();
     }
 
-    private record Context(User user, Wallet wallet, WalletSecurity security) {}
+    private record Context(UserAccount user, Wallet wallet, WalletSecurity security) {}
     private record Result<T>(T value, ErrorCode error) {
         static <T> Result<T> success(T value) { return new Result<>(value, null); }
         static <T> Result<T> failure(ErrorCode error) { return new Result<>(null, error); }

@@ -1,9 +1,12 @@
 package com.example.demo.wallet.controller;
+import com.example.demo.wallet.api.dto.RefundDecisionRequest;
+import com.example.demo.wallet.api.dto.RefundCaseResponse;
+import com.example.demo.wallet.api.dto.RefundCaseRequest;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.service.WalletRefundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

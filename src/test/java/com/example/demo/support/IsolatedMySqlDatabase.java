@@ -31,6 +31,7 @@ public class IsolatedMySqlDatabase implements ApplicationContextInitializer<Conf
         TestPropertyValues.of(
                 "spring.datasource.url=" + serverUrl + database + options,
                 "spring.jpa.hibernate.ddl-auto=create-only",
+                "spring.flyway.enabled=false",
                 "wallet.settlement.worker-enabled=false",
                 "wallet.bank.worker-enabled=false",
                 "wallet.reconciliation.worker-enabled=false",
@@ -40,6 +41,14 @@ public class IsolatedMySqlDatabase implements ApplicationContextInitializer<Conf
                 "app.token.cleanup-initial-delay-ms=3600000",
                 "app.flash-sale.status-sync-interval-ms=3600000")
                 .applyTo(context);
+
+        context.addApplicationListener((ApplicationListener<org.springframework.context.event.ContextRefreshedEvent>) event -> {
+            if (event.getApplicationContext() == context) {
+                new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                    new org.springframework.core.io.ClassPathResource("db/manual/module-boundary-foreign-keys.sql"))
+                    .execute(context.getBean(javax.sql.DataSource.class));
+            }
+        });
 
         context.addApplicationListener((ApplicationListener<ContextClosedEvent>) event -> {
             if (event.getApplicationContext() == context) {

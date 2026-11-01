@@ -5,21 +5,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
-import com.example.demo.user.repository.UserRepository;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.WalletFreezeRequest;
-import com.example.demo.wallet.dto.WalletHistoryQuery;
-import com.example.demo.wallet.dto.WalletHoldQuery;
-import com.example.demo.wallet.dto.WalletHoldResponse;
-import com.example.demo.wallet.dto.WalletResponse;
-import com.example.demo.wallet.dto.WalletTransactionResponse;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.user.api.UserAccount;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.user.api.UserAccountsApi;
+
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletHistoryQuery;
+import com.example.demo.wallet.api.dto.WalletHoldQuery;
+import com.example.demo.wallet.api.dto.WalletHoldResponse;
+import com.example.demo.wallet.api.dto.WalletResponse;
+import com.example.demo.wallet.api.dto.WalletTransactionResponse;
 import com.example.demo.wallet.entity.Wallet;
-import com.example.demo.wallet.entity.WalletStatus;
+import com.example.demo.wallet.api.WalletStatus;
 import com.example.demo.wallet.entity.WalletStatusChange;
 import com.example.demo.wallet.mapper.WalletMapper;
 import com.example.demo.wallet.repository.WalletHoldRepository;
@@ -36,19 +36,19 @@ import lombok.RequiredArgsConstructor;
 @Service
 @Validated
 @RequiredArgsConstructor
-public class WalletService {
+public class WalletService implements com.example.demo.wallet.api.WalletAccountsApi {
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository transactionRepository;
     private final WalletHoldRepository holdRepository;
     private final WalletSecurityRepository securityRepository;
     private final WalletStatusChangeRepository statusChangeRepository;
-    private final UserRepository userRepository;
-    private final CurrentUserService currentUserService;
+    private final UserAccountsApi userRepository;
+    private final UserAccountsApi currentUserService;
     private final WalletMapper mapper;
 
     /** Trusted application use (e.g. registration). Never bind the userId argument from a customer request. */
     @Transactional
-    public WalletResponse initializeWallet(@NotNull @Positive Long userId) {
+    public WalletResponse initializeWallet(Long userId) {
         lockActiveUser(userId);
         Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
                 .orElseGet(() -> walletRepository.saveAndFlush(Wallet.builder().userId(userId).build()));
@@ -90,7 +90,7 @@ public class WalletService {
 
     @Transactional
     public WalletResponse freezeMyWallet(@NotNull @Valid WalletFreezeRequest request) {
-        User actor = lockActiveUser(currentUserService.getCurrentUserId());
+        UserAccount actor = lockActiveUser(currentUserService.getCurrentUserId());
         Wallet wallet = walletRepository.findByUserIdForUpdate(actor.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
         return changeStatus(wallet, WalletStatus.LOCKED, actor, request.getReason());
@@ -99,19 +99,19 @@ public class WalletService {
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public WalletResponse freezeWallet(@NotNull @Positive Long walletId, @NotNull @Valid WalletFreezeRequest request) {
-        User actor = lockActiveAdministrator();
+        UserAccount actor = lockActiveAdministrator();
         return changeStatus(findWalletForUpdate(walletId), WalletStatus.LOCKED, actor, request.getReason());
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public WalletResponse unfreezeWallet(@NotNull @Positive Long walletId, @NotNull @Valid WalletFreezeRequest request) {
-        User actor = lockActiveAdministrator();
+        UserAccount actor = lockActiveAdministrator();
         return changeStatus(findWalletForUpdate(walletId), WalletStatus.ACTIVE, actor, request.getReason());
     }
 
     private Wallet findMyWallet() {
-        User user = currentUserService.getCurrentUser();
+        UserAccount user = currentUserService.getCurrentUser();
         requireActive(user);
         return walletRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
@@ -122,35 +122,35 @@ public class WalletService {
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
     }
 
-    private User lockActiveUser(Long userId) {
-        User user = userRepository.findByIdForUpdate(userId)
+    private UserAccount lockActiveUser(Long userId) {
+        UserAccount user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         requireActive(user);
         return user;
     }
 
-    private User lockActiveAdministrator() {
-        User actor = lockActiveUser(currentUserService.getCurrentUserId());
+    private UserAccount lockActiveAdministrator() {
+        UserAccount actor = lockActiveUser(currentUserService.getCurrentUserId());
         if (actor.getRole() != UserRole.ADMIN) {
             throw new AppException(ErrorCode.ACCESS_DENIED);
         }
         return actor;
     }
 
-    private void requireActive(User user) {
+    private void requireActive(UserAccount user) {
         if (!user.isActive()) {
             throw new AppException(ErrorCode.USER_LOCKED);
         }
     }
 
-    private WalletResponse changeStatus(Wallet wallet, WalletStatus target, User actor, String reason) {
+    private WalletResponse changeStatus(Wallet wallet, WalletStatus target, UserAccount actor, String reason) {
         if (wallet.getStatus() == target) {
             return toResponse(wallet);
         }
         WalletStatus previous = wallet.getStatus();
         wallet.setStatus(target);
         walletRepository.saveAndFlush(wallet);
-        statusChangeRepository.saveAndFlush(WalletStatusChange.builder().wallet(wallet).actor(actor)
+        statusChangeRepository.saveAndFlush(WalletStatusChange.builder().wallet(wallet).actorId(actor.getId())
                 .actorRole(actor.getRole()).previousStatus(previous).newStatus(target).reason(reason.strip()).build());
         return toResponse(wallet);
     }

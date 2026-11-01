@@ -7,14 +7,14 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.VoucherCustomerResponse;
-import com.example.demo.ecommerce.entity.DiscountType;
+import com.example.demo.ecommerce.api.dto.VoucherCustomerResponse;
+import com.example.demo.ecommerce.api.DiscountType;
 import com.example.demo.ecommerce.entity.UserVoucher;
 import com.example.demo.ecommerce.entity.Voucher;
 import com.example.demo.ecommerce.repository.UserVoucherRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

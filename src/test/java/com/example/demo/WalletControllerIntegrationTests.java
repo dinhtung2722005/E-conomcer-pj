@@ -23,15 +23,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
+import com.example.demo.user.api.UserRole;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.JwtUtils;
-import com.example.demo.wallet.entity.TransactionStatus;
-import com.example.demo.wallet.entity.TransactionType;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
 import com.example.demo.wallet.entity.Wallet;
 import com.example.demo.wallet.entity.WalletHold;
-import com.example.demo.wallet.entity.WalletHoldType;
-import com.example.demo.wallet.entity.WalletStatus;
+import com.example.demo.wallet.api.WalletHoldType;
+import com.example.demo.wallet.api.WalletStatus;
 import com.example.demo.wallet.entity.WalletTransaction;
 import com.example.demo.wallet.repository.WalletHoldRepository;
 import com.example.demo.wallet.repository.WalletRepository;
@@ -219,7 +219,7 @@ class WalletControllerIntegrationTests {
         var changes = audit.findByWalletIdOrderByCreatedAtDescIdDesc(wallet.getId(), PageRequest.of(0, 10));
         assertEquals(1, changes.getTotalElements());
         assertEquals("Bao mat tai khoan", changes.getContent().getFirst().getReason());
-        assertEquals(owner.getId(), changes.getContent().getFirst().getActor().getId());
+        assertEquals(owner.getId(), changes.getContent().getFirst().getActorId());
         assertStatus(200, http("GET", "/api/wallet", token, null));
         assertStatus(200, http("GET", "/api/wallet/transactions", token, null));
     }
@@ -245,7 +245,7 @@ class WalletControllerIntegrationTests {
         assertEquals("ACTIVE", result(unfrozen).get("status").asString());
         var changes = audit.findByWalletIdOrderByCreatedAtDescIdDesc(wallet.getId(), PageRequest.of(0, 10));
         assertEquals(2, changes.getTotalElements());
-        assertTrue(changes.stream().allMatch(change -> change.getActor().getId().equals(admin.getId())
+        assertTrue(changes.stream().allMatch(change -> change.getActorId().equals(admin.getId())
                 && change.getActorRole() == UserRole.ADMIN));
         assertStatus(400, http("POST", "/api/admin/wallets/-1/freeze", adminToken, body));
         assertStatus(404, http("POST", "/api/admin/wallets/" + Long.MAX_VALUE + "/freeze", adminToken, body));

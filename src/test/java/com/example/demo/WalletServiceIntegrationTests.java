@@ -31,27 +31,27 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
-import com.example.demo.wallet.dto.WalletFreezeRequest;
-import com.example.demo.wallet.dto.WalletHistoryQuery;
-import com.example.demo.wallet.dto.WalletHoldQuery;
-import com.example.demo.wallet.entity.TransactionStatus;
-import com.example.demo.wallet.entity.TransactionType;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletHistoryQuery;
+import com.example.demo.wallet.api.dto.WalletHoldQuery;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
 import com.example.demo.wallet.entity.Wallet;
-import com.example.demo.wallet.entity.WalletBalanceType;
+import com.example.demo.wallet.api.WalletBalanceType;
 import com.example.demo.wallet.entity.WalletHold;
-import com.example.demo.wallet.entity.WalletHoldStatus;
-import com.example.demo.wallet.entity.WalletHoldType;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletHoldType;
 import com.example.demo.wallet.entity.WalletSecurity;
-import com.example.demo.wallet.entity.WalletStatus;
+import com.example.demo.wallet.api.WalletStatus;
 import com.example.demo.wallet.entity.WalletStatusChange;
 import com.example.demo.wallet.entity.WalletTransaction;
 import com.example.demo.wallet.repository.WalletHoldRepository;
@@ -214,7 +214,7 @@ class WalletServiceIntegrationTests {
         assertEquals(1, page.getTotalElements());
         var response = page.getData().getFirst();
         assertEquals(cash.getId(), response.getId());
-        assertEquals(cash.getOrder().getId(), response.getOrderId());
+        assertEquals(cash.getOrderId(), response.getOrderId());
         assertEquals(0, new BigDecimal("50").compareTo(response.getRemainingAmount()));
         assertEquals(WalletBalanceType.CASH, response.getBalanceType());
     }
@@ -255,7 +255,7 @@ class WalletServiceIntegrationTests {
         var changes = audit.findByWalletIdOrderByCreatedAtDescIdDesc(wallet.getId(), PageRequest.of(0, 10));
         assertEquals(1, changes.getTotalElements());
         var change = changes.getContent().getFirst();
-        assertEquals(owner.getId(), change.getActor().getId());
+        assertEquals(owner.getId(), change.getActorId());
         assertEquals(UserRole.CUSTOMER, change.getActorRole());
         assertEquals(WalletStatus.ACTIVE, change.getPreviousStatus());
         assertEquals(WalletStatus.LOCKED, change.getNewStatus());
@@ -288,7 +288,7 @@ class WalletServiceIntegrationTests {
         var changes = audit.findByWalletIdOrderByCreatedAtDescIdDesc(wallet.getId(), PageRequest.of(0, 10));
         assertEquals(2, changes.getTotalElements());
         assertEquals(WalletStatus.ACTIVE, changes.getContent().getFirst().getNewStatus());
-        assertTrue(changes.stream().allMatch(change -> change.getActor().getId().equals(admin.getId())
+        assertTrue(changes.stream().allMatch(change -> change.getActorId().equals(admin.getId())
                 && change.getActorRole() == UserRole.ADMIN));
         assertEquals(WalletStatus.ACTIVE, wallets.findById(wallet.getId()).orElseThrow().getStatus());
         assertError(ErrorCode.WALLET_NOT_FOUND, () -> service.freezeWallet(Long.MAX_VALUE, reason("missing")));
@@ -360,7 +360,7 @@ class WalletServiceIntegrationTests {
         Order order = orders.saveAndFlush(Order.builder().userId(wallet.getUserId()).receiverName("Test Buyer")
                 .receiverPhone("0900000000").shippingAddress("Test address").status(OrderStatus.PAID)
                 .totalAmount(new BigDecimal("100")).finalAmount(new BigDecimal("100")).build());
-        return holds.saveAndFlush(WalletHold.builder().wallet(wallet).order(order).referenceId(reference)
+        return holds.saveAndFlush(WalletHold.builder().wallet(wallet).orderId(order.getId()).referenceId(reference)
                 .type(WalletHoldType.ORDER_PAYMENT).amount(new BigDecimal("100")).build());
     }
 

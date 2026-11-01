@@ -5,8 +5,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.user.entity.User;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
 

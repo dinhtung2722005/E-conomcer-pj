@@ -1,4 +1,5 @@
 package com.example.demo.ecommerce.entity;
+import com.example.demo.ecommerce.api.OrderStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

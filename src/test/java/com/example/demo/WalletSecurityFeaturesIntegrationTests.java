@@ -1,4 +1,15 @@
 package com.example.demo;
+import com.example.demo.wallet.api.SecurityOutcome;
+import com.example.demo.wallet.api.SecurityAction;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WithdrawRequest;
+import com.example.demo.wallet.api.dto.WalletRecoveryDtos;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletBankActionRequest;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
+import com.example.demo.wallet.api.dto.LinkBankAccountRequest;
 import static org.junit.jupiter.api.Assertions.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,10 +26,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.*;
-import com.example.demo.user.exception.*;
+import com.example.demo.shared.error.*;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.gateway.WalletRecoveryDelivery;
 import com.example.demo.wallet.repository.*;
@@ -54,7 +65,7 @@ class WalletSecurityFeaturesIntegrationTests {
         var start=recovery.requestReset();assertEquals(protectedEmail,mail.to);assertFalse(json.writeValueAsString(start).contains(mail.code));
         var stored=challenges.findById(start.challengeId()).orElseThrow();assertNotEquals(mail.code,stored.getCodeHash());
         recovery.resetPin(new WalletRecoveryDtos.Confirm(start.challengeId(),mail.code,"654321","654321"));
-        assertTrue(securityEvents.findAll().stream().anyMatch(e->e.getAction()==WalletSecurityEvent.Action.PIN_RESET&&e.getOutcome()==WalletSecurityEvent.Outcome.SUCCESS&&start.challengeId().equals(e.getReference())));
+        assertTrue(securityEvents.findAll().stream().anyMatch(e->e.getAction()==SecurityAction.PIN_RESET&&e.getOutcome()==SecurityOutcome.SUCCESS&&start.challengeId().equals(e.getReference())));
         var row=security.findById(walletId).orElseThrow();assertTrue(encoder.matches("654321",row.getPinHash()));assertTrue(row.getWithdrawalBlockedUntil().isAfter(LocalDateTime.now().plusHours(23)));
         assertTrue(users.findById(owner.getId()).orElseThrow().getTokenVersion()>owner.getTokenVersion());
         error(ErrorCode.TOKEN_INVALID,()->recovery.requestReset());authenticate(users.findById(owner.getId()).orElseThrow());
@@ -66,7 +77,7 @@ class WalletSecurityFeaturesIntegrationTests {
         var start=recovery.requestReset();String bad=mail.code.equals("00000000")?"11111111":"00000000";
         for(int i=0;i<5;i++)error(ErrorCode.WALLET_RECOVERY_INVALID,()->recovery.resetPin(new WalletRecoveryDtos.Confirm(start.challengeId(),bad,"654321","654321")));
         var row=challenges.findById(start.challengeId()).orElseThrow();assertEquals(5,row.getFailedAttempts());assertNotNull(row.getConsumedAt());
-        assertEquals(5,securityEvents.findAll().stream().filter(e->e.getAction()==WalletSecurityEvent.Action.PIN_RESET&&e.getOutcome()==WalletSecurityEvent.Outcome.REJECTED&&start.challengeId().equals(e.getReference())).count());
+        assertEquals(5,securityEvents.findAll().stream().filter(e->e.getAction()==SecurityAction.PIN_RESET&&e.getOutcome()==SecurityOutcome.REJECTED&&start.challengeId().equals(e.getReference())).count());
         error(ErrorCode.WALLET_RECOVERY_INVALID,()->recovery.resetPin(new WalletRecoveryDtos.Confirm(start.challengeId(),mail.code,"654321","654321")));
         error(ErrorCode.WALLET_RECOVERY_RATE_LIMIT,()->recovery.requestReset());
     }
@@ -82,7 +93,7 @@ class WalletSecurityFeaturesIntegrationTests {
         String updated="verified-"+UUID.randomUUID()+"@example.test";owner.setEmail(updated);users.saveAndFlush(owner);
         var start=recovery.requestRecoveryEmail(new WalletRecoveryDtos.Enroll("123456"));assertEquals(updated,mail.to);assertNotEquals(updated,security.findById(walletId).orElseThrow().getRecoveryEmail());
         recovery.confirmRecoveryEmail(new WalletRecoveryDtos.EmailConfirm(start.challengeId(),mail.code));assertEquals(updated,security.findById(walletId).orElseThrow().getRecoveryEmail());
-        assertTrue(securityEvents.findAll().stream().anyMatch(e->e.getAction()==WalletSecurityEvent.Action.RECOVERY_EMAIL_CHANGE&&e.getOutcome()==WalletSecurityEvent.Outcome.SUCCESS&&start.challengeId().equals(e.getReference())));
+        assertTrue(securityEvents.findAll().stream().anyMatch(e->e.getAction()==SecurityAction.RECOVERY_EMAIL_CHANGE&&e.getOutcome()==SecurityOutcome.SUCCESS&&start.challengeId().equals(e.getReference())));
     }
     @Test void cancelledUnsentWithdrawalReleasesOnceEvenWhileWalletFrozen(){
         var result=funding.withdraw(withdraw(account()),"cancel");var freeze=new WalletFreezeRequest();freeze.setReason("Lost device");walletService.freezeMyWallet(freeze);

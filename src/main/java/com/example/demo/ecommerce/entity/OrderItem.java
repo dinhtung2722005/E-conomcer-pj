@@ -27,11 +27,6 @@ import lombok.Setter;
 public class OrderItem {
     @Column(name = "seller_id", updatable = false)
     private Long sellerId;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", insertable = false, updatable = false)
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    @Setter(lombok.AccessLevel.NONE)
-    private com.example.demo.user.entity.User seller;
     @Column(name = "settlement_amount", nullable = false, precision = 19, scale = 4, updatable = false)
     @org.hibernate.annotations.ColumnDefault("0") @Builder.Default
     private BigDecimal settlementAmount = BigDecimal.ZERO;

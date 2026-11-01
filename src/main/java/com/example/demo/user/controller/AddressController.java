@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.user.dto_request.AddressRequest;
-import com.example.demo.user.dto_request.AddressResponse;
-import com.example.demo.user.dto_request.ApiResponse;
+import com.example.demo.user.api.dto.AddressRequest;
+import com.example.demo.user.api.dto.AddressResponse;
+import com.example.demo.shared.web.ApiResponse;
 import com.example.demo.user.service.AddressService;
 import com.example.demo.user.service.CurrentUserService;
 

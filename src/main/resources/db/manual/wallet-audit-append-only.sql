@@ -10,3 +10,5 @@ CREATE TRIGGER wallet_journals_no_update BEFORE UPDATE ON wallet_journals FOR EA
 CREATE TRIGGER wallet_journals_no_delete BEFORE DELETE ON wallet_journals FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Audit records are append-only';
 CREATE TRIGGER wallet_journal_entries_no_update BEFORE UPDATE ON wallet_journal_entries FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Audit records are append-only';
 CREATE TRIGGER wallet_journal_entries_no_delete BEFORE DELETE ON wallet_journal_entries FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Audit records are append-only';
+CREATE TRIGGER wallet_limit_reservations_no_update BEFORE UPDATE ON wallet_limit_reservations FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Quota reservations are append-only';
+CREATE TRIGGER wallet_limit_reservations_no_delete BEFORE DELETE ON wallet_limit_reservations FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Quota reservations are append-only';

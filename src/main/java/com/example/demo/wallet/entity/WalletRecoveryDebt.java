@@ -1,4 +1,5 @@
 package com.example.demo.wallet.entity;
+import com.example.demo.wallet.api.WalletBalanceType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import jakarta.persistence.*;
@@ -10,7 +11,6 @@ import lombok.*;
 public class WalletRecoveryDebt {
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
     @Column(name="user_id",nullable=false,updatable=false) private Long userId;
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="user_id",insertable=false,updatable=false) @com.fasterxml.jackson.annotation.JsonIgnore private com.example.demo.user.entity.User user;
     @Column(name="refund_case_id",nullable=false,updatable=false) private Long refundCaseId;
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="refund_case_id",insertable=false,updatable=false) @com.fasterxml.jackson.annotation.JsonIgnore private WalletRefundCase refundCase;
     @Column(nullable=false,length=3,updatable=false) private String currency;

@@ -8,9 +8,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.ecommerce.repository.OrderRepository;
-import com.example.demo.ecommerce.service.OrderService;
+import com.example.demo.ecommerce.api.OrderWorkflowUseCase;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
  * Hủy các đơn hàng PENDING quá hạn thanh toán và hoàn hàng về kho.
  *
  * <p>Cố ý <b>không</b> đặt {@code @Transactional} trên method này. Mỗi lời gọi
- * {@link OrderService#cancelExpiredOrder} là một transaction riêng, nên một đơn lỗi không
+ * {@link OrderWorkflowUseCase#cancelExpiredOrder} là một transaction riêng, nên một đơn lỗi không
  * làm rollback cả lô. Bản cũ bọc cả vòng lặp trong một transaction duy nhất: chỉ cần
  * một đơn lỗi lúc commit là toàn bộ lô bị hủy bỏ, trong khi log vẫn báo thành công
  * từng đơn.
@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderCleanupJob {
 
     private final OrderRepository orderRepository;
-    private final OrderService orderService;
+    private final OrderWorkflowUseCase orderService;
 
     @Value("${app.order.pending-timeout-minutes:15}")
     private long pendingTimeoutMinutes;

@@ -8,21 +8,29 @@ Backend REST API cho hệ thống bán hàng, viết bằng **Spring Boot 4.1** 
 # 1. Tạo database
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS ecommerce CHARACTER SET utf8mb4;"
 
-# 2. Chạy
+# 2. Sao chép .env.example thành .env và điền tài khoản DB/JWT riêng
+# 3. Chạy local (profile dev)
 ./mvnw spring-boot:run
 ```
 
-Ứng dụng chạy ở `http://localhost:8080`. Mặc định kết nối `localhost:3306/ecommerce` với `root/123456`.
+Ứng dụng chạy ở `http://localhost:8080`. `.env` được Spring đọc khi chạy local và
+bị Git bỏ qua. Không có mật khẩu DB, JWT key hay khóa Cloudinary thật trong cấu hình được theo dõi.
+
+Với database local mới do profile `dev` tạo bằng Hibernate, cần áp dụng các khóa ngoại trong
+[`module-boundary-foreign-keys.sql`](src/main/resources/db/manual/module-boundary-foreign-keys.sql).
+Database cũ giữ các khóa ngoại hiện có; xem [hướng dẫn database](docs/module-architecture.md#database).
 
 ### Cấu hình
 
-Toàn bộ cấu hình nằm trong `src/main/resources/application.properties` — sửa trực tiếp file đó là chạy được, không cần set biến môi trường.
+Cấu hình công khai nằm trong `src/main/resources/application*.properties`.
+Bí mật lấy từ biến môi trường hoặc `.env` local. Profile `dev` cho phép Hibernate update;
+profile `prod` chỉ validate schema và từ chối tài khoản DB root, khóa JWT thiếu/yếu hoặc DDL tự động.
 
 | Property | Mặc định | Ghi chú |
 |---|---|---|
 | `spring.datasource.url` | `jdbc:mysql://localhost:3306/ecommerce...` | |
-| `spring.datasource.username` / `password` | `root` / `123456` | |
-| `app.jwt.secret` | chuỗi Base64 384-bit | **Đổi giá trị này là toàn bộ token đang phát hành mất hiệu lực** |
+| `spring.datasource.username` / `password` | không có | Bắt buộc điền ngoài repo |
+| `app.jwt.secret` | không có | Base64 ít nhất 32 byte; đổi khóa làm token cũ mất hiệu lực |
 | `app.jwt.expiration-ms` | `900000` (15 phút) | Thời gian sống access token |
 | `app.jwt.refresh-expiration-ms` | `86400000` (24 giờ) | Thời gian sống refresh token; đổi thành `604800000` nếu muốn 7 ngày |
 | `cloudinary.*` | — | Thiếu/sai thì chỉ chức năng upload avatar bị tắt |
@@ -32,7 +40,8 @@ Toàn bộ cấu hình nằm trong `src/main/resources/application.properties` �
 
 > **Khi deploy lên môi trường thật:** biến môi trường có độ ưu tiên cao hơn `application.properties`, nên có thể ghi đè mà không phải sửa code. Tên biến là dạng viết hoa + gạch dưới của property — ví dụ `app.jwt.secret` → `APP_JWT_SECRET`, `cloudinary.api-secret` → `CLOUDINARY_API_SECRET`. Xem `.env.example`.
 
-> **Lưu ý bảo mật:** các giá trị trong `application.properties` (mật khẩu DB, JWT secret, Cloudinary secret) đang nằm trong repo. Nếu repo là công khai, hãy đổi các giá trị này trước khi dùng thật, hoặc chuyển sang biến môi trường như trên.
+> Các khóa từng được lưu trong Git cần được thay tại nhà cung cấp. Xóa khỏi file hiện tại
+> không xóa chúng khỏi lịch sử Git. Xem [hướng dẫn triển khai và migration](docs/wallet-hardening.md).
 
 ## Kiến trúc
 
@@ -44,7 +53,9 @@ com.example.demo
 │   └── job/        TokenCleanupJob (dọn blacklist)
 ├── ecommerce/  danh mục, sản phẩm, kho, giỏ hàng, đơn hàng, voucher, flash sale
 │   └── job/        OrderCleanupJob, FlashSaleStatusJob
-└── wallet/     PIN, nạp/rút, thanh toán/hoàn, quyết toán, sổ đối ứng và đối soát
+├── wallet/     PIN, nạp/rút, thanh toán/hoàn, quyết toán, sổ đối ứng và đối soát
+├── application/ điều phối transaction giữa các API module
+└── shared/     lỗi, response/phân trang và logging dùng chung
 ```
 
 ## Quy ước API
@@ -58,8 +69,8 @@ com.example.demo
   một refresh token chỉ có một request thành công; nếu ký access token lỗi, rotation được rollback.
 - Đổi mật khẩu hoặc khóa tài khoản tăng `users.token_version` và xóa refresh token
   trong cùng transaction. Mọi access token cũ bị từ chối ngay, kể cả sau khi mở khóa lại.
-  Hibernate `ddl-auto=update` hiện có sẽ thêm cột `token_version BIGINT DEFAULT 0 NOT NULL`
-  khi khởi động lại. Token cũ chưa có claim này được xem là phiên bản 0.
+  Profile `prod` dùng schema đã migration và `ddl-auto=validate`.
+  Token cũ chưa có claim này được xem là phiên bản 0.
 
 ### Phân quyền
 
@@ -263,3 +274,7 @@ dẫn chuẩn/alias và cập nhật trạng thái lặp lại. `DemoApplication
 ## Log và audit
 
 Xem [log JSON, requestId, lịch sử bảo mật và SQL bảo vệ audit](docs/wallet-logging.md).
+
+## Ranh giới module
+
+Xem [API nội bộ, tầng điều phối và kiểm thử kiến trúc](docs/module-architecture.md).

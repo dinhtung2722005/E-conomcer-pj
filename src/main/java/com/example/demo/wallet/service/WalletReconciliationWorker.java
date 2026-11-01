@@ -19,7 +19,7 @@ public class WalletReconciliationWorker {
         this.wallets = wallets; this.reconciliation = reconciliation; this.enabled = enabled;
         this.alerts=alerts;
     }
-    @Scheduled(fixedDelayString = "${wallet.reconciliation.poll-delay-ms:3600000}",
+    @Scheduled(scheduler = "walletAuditScheduler", fixedDelayString = "${wallet.reconciliation.poll-delay-ms:3600000}",
             initialDelayString = "${wallet.reconciliation.initial-delay-ms:3600000}")
     public void run() {
         if (!enabled) return;

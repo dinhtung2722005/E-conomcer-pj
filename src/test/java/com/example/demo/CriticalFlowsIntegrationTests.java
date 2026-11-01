@@ -1,4 +1,13 @@
 package com.example.demo;
+import com.example.demo.ecommerce.api.OrderWorkflowUseCase;
+import com.example.demo.wallet.api.OrderPaymentUseCase;
+import com.example.demo.ecommerce.api.DiscountType;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
+import com.example.demo.wallet.api.dto.PaymentResponse;
+import com.example.demo.user.api.dto.UserCreationRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,19 +41,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.ObjectMapper;
 
-import com.example.demo.ecommerce.dto.OrderRequest;
-import com.example.demo.ecommerce.dto.OrderResponse;
+import com.example.demo.ecommerce.api.dto.OrderRequest;
+import com.example.demo.ecommerce.api.dto.OrderResponse;
 import com.example.demo.ecommerce.entity.*;
 import com.example.demo.ecommerce.repository.*;
 import com.example.demo.ecommerce.service.CheckoutService;
-import com.example.demo.ecommerce.service.OrderService;
 import com.example.demo.support.IsolatedMySqlDatabase;
-import com.example.demo.user.dto_request.ChangePasswordRequest;
-import com.example.demo.user.dto_request.LoginRequest;
+import com.example.demo.user.api.dto.ChangePasswordRequest;
+import com.example.demo.user.api.dto.LoginRequest;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.RefreshTokenRepository;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.JwtUtils;
@@ -71,8 +79,8 @@ class CriticalFlowsIntegrationTests {
     @Autowired RefreshTokenRepository refreshTokens;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired CheckoutService checkout;
-    @Autowired OrderService orderService;
-    @Autowired com.example.demo.wallet.service.WalletPaymentService walletPayments;
+    @Autowired OrderWorkflowUseCase orderService;
+    @Autowired com.example.demo.wallet.api.OrderPaymentUseCase walletPayments;
     @Autowired com.example.demo.wallet.service.WalletService walletService;
     @Autowired com.example.demo.wallet.repository.WalletRepository wallets;
     @Autowired com.example.demo.wallet.repository.WalletSecurityRepository walletSecurity;
@@ -555,7 +563,7 @@ class CriticalFlowsIntegrationTests {
     void adminUserCrudUsesCanonicalRoutesAndKeepsAliases() throws Exception {
         String token = adminToken();
         String name = "crud_" + UUID.randomUUID().toString().substring(0, 12);
-        String body = json.writeValueAsString(new com.example.demo.user.dto_request.UserCreationRequest(
+        String body = json.writeValueAsString(new com.example.demo.user.api.dto.UserCreationRequest(
                 name, name + "@example.test", PASSWORD));
         var created = http("POST", "/api/admin/users", token, body);
         assertEquals(201, created.statusCode(), created.body());
@@ -717,13 +725,13 @@ class CriticalFlowsIntegrationTests {
         });
     }
 
-    private com.example.demo.wallet.dto.PaymentResponse pay(User user, Long orderId) {
+    private com.example.demo.wallet.api.dto.PaymentResponse pay(User user, Long orderId) {
         var principal = new com.example.demo.user.security.UserPrincipal(user);
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                         principal, null, principal.getAuthorities()));
         try {
-            var request = new com.example.demo.wallet.dto.PayOrderRequest();
+            var request = new com.example.demo.wallet.api.dto.PayOrderRequest();
             request.setPin("123456");
             return walletPayments.payOrder(orderId, request, "pay:" + orderId);
         } finally {

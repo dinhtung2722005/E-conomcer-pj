@@ -13,11 +13,11 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mapstruct.factory.Mappers;
 
-import com.example.demo.wallet.dto.ChangePinRequest;
-import com.example.demo.wallet.dto.PayOrderRequest;
-import com.example.demo.wallet.dto.SetupPinRequest;
-import com.example.demo.wallet.dto.TopUpRequest;
-import com.example.demo.wallet.dto.WithdrawRequest;
+import com.example.demo.wallet.api.dto.ChangePinRequest;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
+import com.example.demo.wallet.api.dto.TopUpRequest;
+import com.example.demo.wallet.api.dto.WithdrawRequest;
 import com.example.demo.wallet.entity.WalletSecurity;
 import com.example.demo.wallet.mapper.WalletMapper;
 

@@ -10,20 +10,19 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.OrderResponse;
+import com.example.demo.ecommerce.api.dto.OrderResponse;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderItem;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.ecommerce.entity.Voucher;
 import com.example.demo.ecommerce.mapper.OrderMapper;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.ecommerce.repository.UserVoucherRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.exception.ErrorCode;
-import com.example.demo.wallet.service.WalletOrderFundsService;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,8 +50,7 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final VoucherRepository voucherRepository;
     private final UserVoucherRepository userVoucherRepository;
-    private final WalletOrderFundsService walletFunds;
-    private final com.example.demo.user.service.CurrentUserService currentUser;
+    private final com.example.demo.user.api.UserAccountsApi currentUser;
 
     @Transactional
     public OrderResponse confirmReceipt(Long id) {
@@ -68,11 +66,18 @@ public class OrderService {
         return orderMapper.toResponse(orderRepository.save(order));
     }
 
-    /** WalletReturnService already checked the case and holds the order lock in this transaction. */
+    /** Called by the order API after the application coordinator approved the refund under the order lock. */
     @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY)
-    public void applyApprovedReturn(Order order,java.util.List<com.example.demo.wallet.entity.WalletRefundLine> lines,boolean fullyReturned) {
-        for(var line:lines.stream().sorted(Comparator.comparing(l->l.getItem().getProduct().getId())).toList()) {
-            inventoryService.restock(line.getItem().getProduct().getId(),line.getQuantity());
+    void applyApprovedReturn(Order order,java.util.List<com.example.demo.ecommerce.api.OrderLifecycleApi.ReturnedQuantity> lines,boolean fullyReturned) {
+        var items=order.getItems().stream().collect(java.util.stream.Collectors.toMap(i->i.getId(),i->i));
+        var seen=new java.util.HashSet<Long>();
+        for(var line:lines){
+            var item=items.get(line.orderItemId());
+            if(item==null||!seen.add(line.orderItemId())||line.quantity()<=0||line.quantity()>item.getQuantity())throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        for(var line:lines.stream().sorted(Comparator.comparing(l->items.get(l.orderItemId()).getProduct().getId())).toList()) {
+            var item=items.get(line.orderItemId());
+            inventoryService.restock(item.getProduct().getId(),line.quantity());
         }
         if(fullyReturned){refundVoucher(order);order.setStatus(OrderStatus.REFUNDED);}
     }
@@ -89,7 +94,7 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse updateOrderStatus(Long id, OrderStatus newStatus) {
+    OrderResponse updateOrderStatus(Long id, OrderStatus newStatus) {
         Order order = findOrderForUpdate(id);
         OrderStatus current = order.getStatus();
 
@@ -116,19 +121,8 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse cancelOrder(Long id) {
+    OrderResponse cancelOrder(Long id) {
         return cancelLockedOrder(findOrderForUpdate(id));
-    }
-
-    /** Trạng thái và thời hạn được kiểm tra lại sau khi khóa, tránh hủy đơn vừa được thanh toán. */
-    @Transactional
-    public boolean cancelExpiredOrder(Long id, LocalDateTime cutoff) {
-        Order order = findOrderForUpdate(id);
-        if (order.getStatus() != OrderStatus.PENDING || !order.getCreatedAt().isBefore(cutoff)) {
-            return false;
-        }
-        cancelLockedOrder(order);
-        return true;
     }
 
     private OrderResponse cancelLockedOrder(Order order) {
@@ -145,7 +139,6 @@ public class OrderService {
                     "Không thể hủy đơn hàng ở trạng thái " + current);
         }
 
-        walletFunds.refundCancellation(order);
         restock(order);
         refundVoucher(order);
 
@@ -165,13 +158,6 @@ public class OrderService {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         return orderMapper.toResponse(order);
-    }
-
-    @Transactional
-    public OrderResponse cancelOrderByUser(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        return cancelLockedOrder(order);
     }
 
     /**

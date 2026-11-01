@@ -1,8 +1,9 @@
 package com.example.demo.wallet.controller;
+import com.example.demo.wallet.api.dto.WalletRecoveryDtos;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.wallet.dto.WalletRecoveryDtos.*;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.wallet.api.dto.WalletRecoveryDtos.*;
 import com.example.demo.wallet.service.WalletRecoveryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

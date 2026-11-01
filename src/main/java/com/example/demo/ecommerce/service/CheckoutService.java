@@ -8,16 +8,16 @@ import java.util.Comparator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.OrderRequest;
-import com.example.demo.ecommerce.dto.OrderResponse;
+import com.example.demo.ecommerce.api.dto.OrderRequest;
+import com.example.demo.ecommerce.api.dto.OrderResponse;
 import com.example.demo.ecommerce.entity.Cart;
 import com.example.demo.ecommerce.entity.CartItem;
-import com.example.demo.ecommerce.entity.DiscountType;
+import com.example.demo.ecommerce.api.DiscountType;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderItem;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.ecommerce.entity.Product;
-import com.example.demo.ecommerce.entity.ProductStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
 import com.example.demo.ecommerce.entity.UserVoucher;
 import com.example.demo.ecommerce.entity.Voucher;
 import com.example.demo.ecommerce.mapper.OrderMapper;
@@ -25,8 +25,8 @@ import com.example.demo.ecommerce.repository.CartRepository;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.ecommerce.repository.UserVoucherRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,7 +39,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class CheckoutService {
-    private final com.example.demo.wallet.service.WalletSettlementPolicy settlementPolicy;
+    private final com.example.demo.ecommerce.service.WalletSettlementPolicy settlementPolicy;
 
     /** Mọi số tiền được làm tròn về 2 chữ số thập phân (đơn vị tiền tệ). */
     private static final int MONEY_SCALE = 2;

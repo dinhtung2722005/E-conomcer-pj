@@ -17,7 +17,7 @@ public class WalletOpsSlaWorker {
     @Value("${wallet.ops.transfer-sla:PT48H}") private Duration transferSla;
     @Value("${wallet.ops.refund-sla:PT48H}") private Duration refundSla;
     @Value("${wallet.ops.hold-sla:P9D}") private Duration holdSla;
-    @Scheduled(fixedDelayString="${wallet.ops.poll-delay-ms:60000}",initialDelayString="${wallet.ops.initial-delay-ms:60000}")
+    @Scheduled(scheduler="walletAuditScheduler",fixedDelayString="${wallet.ops.poll-delay-ms:60000}",initialDelayString="${wallet.ops.initial-delay-ms:60000}")
     public void run() {
         if(!enabled)return;
         for(int batch=0;batch<10;batch++) {

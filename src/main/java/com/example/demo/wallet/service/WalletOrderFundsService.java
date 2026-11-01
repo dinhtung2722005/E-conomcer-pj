@@ -1,11 +1,13 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletBalanceType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +21,11 @@ public class WalletOrderFundsService {
     private final WalletLedgerService ledger;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void refundCancellation(Order order) {
-        var wallet = wallets.findByUserIdForUpdate(order.getUserId()).orElse(null);
+    public void refundCancellation(Long orderId,Long buyerId) {
+        var wallet = wallets.findByUserIdForUpdate(buyerId).orElse(null);
         // Legacy orders without wallet payments do not mint a wallet refund.
         if (wallet == null) return;
-        for (var payment : transactions.findOrderPaymentsForUpdate(wallet.getId(), order.getId().toString())) {
+        for (var payment : transactions.findOrderPaymentsForUpdate(wallet.getId(), orderId.toString())) {
             var related = transactions.findRelatedTransactionsForUpdate(payment.getId(), TransactionType.REFUND);
             BigDecimal refunded = related.stream().filter(value -> value.getStatus() == TransactionStatus.SUCCESS
                     || value.getStatus() == TransactionStatus.PENDING || value.getStatus() == TransactionStatus.PROCESSING)

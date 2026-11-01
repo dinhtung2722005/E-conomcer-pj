@@ -12,13 +12,13 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 
 public interface OrderRepository extends JpaRepository<Order, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Order> {
-    @org.springframework.data.jpa.repository.Query("select o.id from Order o where o.status = com.example.demo.ecommerce.entity.OrderStatus.COMPLETED "
+    @org.springframework.data.jpa.repository.Query("select o.id from Order o where o.status = com.example.demo.ecommerce.api.OrderStatus.COMPLETED "
             + "and o.settledAt is null and o.settlementAvailableAt <= :now and o.id > :afterId "
             + "and (o.settlementNextAttemptAt is null or o.settlementNextAttemptAt <= :now) "
-            + "and not exists (select r.id from WalletRefundCase r where r.order=o and r.reviewedAt is null) order by o.id")
+            + "order by o.id")
     java.util.List<Long> findSettlementDueIds(java.time.LocalDateTime now, Long afterId, org.springframework.data.domain.Pageable page);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

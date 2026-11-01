@@ -1,14 +1,26 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.AlertStatus;
+import com.example.demo.wallet.api.RefundStatus;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WalletOpsDtos;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.WalletAuditQuery;
+import com.example.demo.wallet.api.dto.WalletAlertReviewRequest;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.web.PageQuery;
 import java.time.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import com.example.demo.user.dto_request.*;
-import com.example.demo.user.exception.*;
-import com.example.demo.ecommerce.repository.OrderRepository;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.user.api.dto.*;
+import com.example.demo.shared.web.*;
+import com.example.demo.shared.error.*;
+import com.example.demo.ecommerce.api.OrderLifecycleApi;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import jakarta.validation.Valid;
@@ -21,7 +33,7 @@ public class WalletOpsService {
     private final BankTransferRepository transfers;
     private final WalletHoldRepository holds;
     private final WalletRefundCaseRepository refunds;
-    private final OrderRepository orders;
+    private final OrderLifecycleApi orders;
     private final WalletAlertRepository alerts;
     private final WalletOpsAuditRepository audit;
     private final WalletSecurityEventRepository securityEvents;
@@ -30,7 +42,7 @@ public class WalletOpsService {
     @Value("${wallet.ops.refund-sla:PT48H}") private Duration refundSla;
     @Transactional(readOnly=true) public WalletOpsDtos.Summary summary() {
         access.requireAdmin(); return new WalletOpsDtos.Summary(transfers.countByFinishedFalse(),
-            refunds.countByStatus(WalletRefundCase.Status.REQUESTED),alerts.countByStatus(WalletAlert.Status.OPEN),journals.countUnbalancedJournals());
+            refunds.countByStatus(RefundStatus.REQUESTED),alerts.countByStatus(AlertStatus.OPEN),journals.countUnbalancedJournals());
     }
     @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Transfer> transfers(@Valid @NotNull PageQuery page,TransactionStatus status,boolean onlyOverdue) {
         access.requireAdmin(); var cutoff=LocalDateTime.now().minus(transferSla);
@@ -41,17 +53,18 @@ public class WalletOpsService {
     }
     @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Held> holds(@Valid @NotNull PageQuery page) {
         access.requireAdmin(); return PageResponse.from(holds.findAll((r,q,b)->b.greaterThan(b.diff(b.diff(r.<java.math.BigDecimal>get("amount"),r.<java.math.BigDecimal>get("capturedAmount")),r.<java.math.BigDecimal>get("releasedAmount")),java.math.BigDecimal.ZERO),page.toPageable()).map(h->
-            new WalletOpsDtos.Held(h.getId(),h.getWallet().getId(),h.getOrder()==null?null:h.getOrder().getId(),h.getType(),h.getBalanceType(),h.getRemainingAmount(),h.getStatus(),h.getCreatedAt(),h.getCreatedAt().isBefore(LocalDateTime.now().minusDays(9)))));
+            new WalletOpsDtos.Held(h.getId(),h.getWallet().getId(),h.getOrderId(),h.getType(),h.getBalanceType(),h.getRemainingAmount(),h.getStatus(),h.getCreatedAt(),h.getCreatedAt().isBefore(LocalDateTime.now().minusDays(9)))));
     }
-    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Refund> refunds(@Valid @NotNull PageQuery page,WalletRefundCase.Status status) {
+    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Refund> refunds(@Valid @NotNull PageQuery page,RefundStatus status) {
         access.requireAdmin(); return PageResponse.from(refunds.findAll((r,q,b)->status==null?b.conjunction():b.equal(r.get("status"),status),page.toPageable()).map(c->
-            new WalletOpsDtos.Refund(c.getId(),c.getOrder().getId(),c.getStatus(),c.getReason(),c.getCreatedAt(),c.getReviewedAt(),c.getStatus()==WalletRefundCase.Status.REQUESTED&&c.getCreatedAt().isBefore(LocalDateTime.now().minus(refundSla)))));
+            new WalletOpsDtos.Refund(c.getId(),c.getOrderId(),c.getStatus(),c.getReason(),c.getCreatedAt(),c.getReviewedAt(),c.getStatus()==RefundStatus.REQUESTED&&c.getCreatedAt().isBefore(LocalDateTime.now().minus(refundSla)))));
     }
     @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Settlement> settlements(@Valid @NotNull PageQuery page) {
-        access.requireAdmin(); return PageResponse.from(orders.findAll((r,q,b)->b.and(b.equal(r.get("status"),com.example.demo.ecommerce.entity.OrderStatus.COMPLETED),b.isNull(r.get("settledAt"))),page.toPageable()).map(o->
-            new WalletOpsDtos.Settlement(o.getId(),o.getFinalAmount(),o.getSettlementAvailableAt(),o.getSettledAt(),o.getSettlementNextAttemptAt(),o.getSettlementAttempts(),o.getSettlementLastError(),o.getSettlementAvailableAt()!=null&&o.getSettlementAvailableAt().isBefore(LocalDateTime.now().minusDays(1)))));
+        access.requireAdmin(); var result=orders.unsettled(page);
+        return new PageResponse<>(result.getCurrentPage(),result.getTotalPages(),result.getTotalElements(),result.getData().stream().map(o->
+            new WalletOpsDtos.Settlement(o.orderId(),o.amount(),o.availableAt(),o.settledAt(),o.nextAttemptAt(),o.attempts(),o.lastError(),o.slaBreached())).toList());
     }
-    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Alert> alerts(@Valid @NotNull PageQuery page,WalletAlert.Status status) {
+    @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Alert> alerts(@Valid @NotNull PageQuery page,AlertStatus status) {
         access.requireAdmin(); return PageResponse.from(alerts.findAll((r,q,b)->status==null?b.conjunction():b.equal(r.get("status"),status),page.toPageable()).map(this::alert));
     }
     @Transactional(readOnly=true) public PageResponse<WalletOpsDtos.Audit> audit(@Valid @NotNull WalletAuditQuery query) {
@@ -89,9 +102,7 @@ public class WalletOpsService {
         audit.saveAndFlush(WalletOpsAudit.builder().actorId(actor.getId()).walletId(transfer.getTransaction().getWallet().getId()).action("BANK_RETRY").reference(id.toString()).reason(request.getReason().strip()).build());
     }
     @Transactional public void retrySettlement(@Positive Long id,@Valid @NotNull WalletFreezeRequest request) {
-        var actor=access.requireAdmin(); var order=orders.findByIdForUpdate(id).orElseThrow(()->new AppException(ErrorCode.ORDER_NOT_FOUND));
-        if(order.getSettledAt()!=null) throw new AppException(ErrorCode.DATA_CONFLICT);
-        order.setSettlementNextAttemptAt(LocalDateTime.now());
+        var actor=access.requireAdmin(); orders.scheduleSettlementRetry(id);
         audit.saveAndFlush(WalletOpsAudit.builder().actorId(actor.getId()).action("SETTLEMENT_RETRY").reference(id.toString()).reason(request.getReason().strip()).build());
     }
     private WalletOpsDtos.Alert alert(WalletAlert a) { return new WalletOpsDtos.Alert(a.getId(),a.getCategory(),a.getReference(),a.getMessage(),a.getStatus(),a.getCreatedAt(),a.getLastSeenAt(),a.getReviewedBy(),a.getReviewReason()); }

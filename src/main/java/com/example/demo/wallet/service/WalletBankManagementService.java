@@ -1,13 +1,18 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.*;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
-import com.example.demo.user.exception.*;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.WalletBankActionRequest;
+import com.example.demo.shared.error.*;
+import com.example.demo.user.api.UserAccountsApi;
+import com.example.demo.wallet.api.dto.WalletBankActionRequest;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import jakarta.validation.Valid;
@@ -15,7 +20,7 @@ import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 @Service @Validated @RequiredArgsConstructor @Transactional(propagation=Propagation.NOT_SUPPORTED)
 public class WalletBankManagementService {
-    private final WalletPinService pins; private final CurrentUserService currentUser;
+    private final WalletPinService pins; private final UserAccountsApi currentUser;
     private final WalletRepository wallets; private final LinkedBankAccountRepository accounts;
     private final BankTransferRepository transfers; private final WalletTransactionRepository transactions;
     private final WalletHoldRepository holds; private final WalletLedgerService ledger;

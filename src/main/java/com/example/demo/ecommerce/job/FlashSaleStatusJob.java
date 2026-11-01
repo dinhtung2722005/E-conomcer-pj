@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.ecommerce.entity.FlashSale;
-import com.example.demo.ecommerce.entity.FlashSaleStatus;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
 import com.example.demo.ecommerce.repository.FlashSaleRepository;
 
 import lombok.RequiredArgsConstructor;

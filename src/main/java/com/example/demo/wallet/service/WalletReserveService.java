@@ -1,4 +1,12 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletStatus;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.web.PageQuery;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -8,9 +16,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.*;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
-import com.example.demo.user.exception.*;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.WalletReserveFundingRequest;
+import com.example.demo.shared.error.*;
+import com.example.demo.user.api.UserAccountsApi;
+import com.example.demo.wallet.api.dto.WalletReserveFundingRequest;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import jakarta.validation.Valid;
@@ -20,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class WalletReserveService {
     public record Reserve(String currency,BigDecimal balance){}
     public record Debt(Long id,Long userId,Long refundCaseId,WalletBalanceType source,String currency,BigDecimal amount,BigDecimal repaid){}
-    private final WalletAdminAccess access;private final CurrentUserService currentUser;private final WalletPinService pins;
+    private final WalletAdminAccess access;private final UserAccountsApi currentUser;private final WalletPinService pins;
     private final WalletRepository wallets;private final WalletDebtService debts;private final WalletRecoveryDebtRepository debtRows;
     private final WalletRefundReserveRepository reserves;private final WalletOperationService operations;
     private final WalletTransactionRepository transactions;private final WalletLedgerService ledger;private final WalletOpsAuditRepository audit;
@@ -28,8 +36,8 @@ public class WalletReserveService {
     @PreAuthorize("hasRole('ADMIN')") public Reserve balance(@Pattern(regexp="[A-Z]{3}") String currency){access.requireAdmin();return reserves.findById(currency).map(r->new Reserve(currency,r.getBalance())).orElse(new Reserve(currency,BigDecimal.ZERO));}
     @PreAuthorize("hasRole('ADMIN')") public Long fund(@Valid @NotNull WalletReserveFundingRequest request,String key){access.requireAdmin();return transfer(request,key,false);}
     public Long repay(@Valid @NotNull WalletReserveFundingRequest request,String key){return transfer(request,key,true);}
-    public com.example.demo.user.dto_request.PageResponse<Debt> ownDebts(@Valid @NotNull com.example.demo.user.dto_request.PageQuery page){var user=currentUser.getCurrentUser();if(!user.isActive())throw new AppException(ErrorCode.USER_LOCKED);return com.example.demo.user.dto_request.PageResponse.from(debtRows.findAll((r,q,b)->b.equal(r.get("userId"),user.getId()),page.toPageable()).map(d->new Debt(d.getId(),d.getUserId(),d.getRefundCaseId(),d.getBalanceType(),d.getCurrency(),d.getAmount(),d.getRepaidAmount())));}
-    @PreAuthorize("hasRole('ADMIN')") public com.example.demo.user.dto_request.PageResponse<Debt> list(@Valid @NotNull com.example.demo.user.dto_request.PageQuery page){access.requireAdmin();return com.example.demo.user.dto_request.PageResponse.from(debtRows.findAll(page.toPageable()).map(d->new Debt(d.getId(),d.getUserId(),d.getRefundCaseId(),d.getBalanceType(),d.getCurrency(),d.getAmount(),d.getRepaidAmount())));}
+    public com.example.demo.shared.web.PageResponse<Debt> ownDebts(@Valid @NotNull com.example.demo.shared.web.PageQuery page){var user=currentUser.getCurrentUser();if(!user.isActive())throw new AppException(ErrorCode.USER_LOCKED);return com.example.demo.shared.web.PageResponse.from(debtRows.findAll((r,q,b)->b.equal(r.get("userId"),user.getId()),page.toPageable()).map(d->new Debt(d.getId(),d.getUserId(),d.getRefundCaseId(),d.getBalanceType(),d.getCurrency(),d.getAmount(),d.getRepaidAmount())));}
+    @PreAuthorize("hasRole('ADMIN')") public com.example.demo.shared.web.PageResponse<Debt> list(@Valid @NotNull com.example.demo.shared.web.PageQuery page){access.requireAdmin();return com.example.demo.shared.web.PageResponse.from(debtRows.findAll(page.toPageable()).map(d->new Debt(d.getId(),d.getUserId(),d.getRefundCaseId(),d.getBalanceType(),d.getCurrency(),d.getAmount(),d.getRepaidAmount())));}
     private Long transfer(WalletReserveFundingRequest request,String key,boolean repayment){
         TransactionType type=repayment?TransactionType.DEBT_REPAYMENT:TransactionType.RESERVE_FUNDING;
         String fingerprint=operations.fingerprint(type+"|"+request.amount().stripTrailingZeros().toPlainString());var auth=pins.authorize(request.pin(),fingerprint);

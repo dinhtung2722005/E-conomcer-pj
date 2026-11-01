@@ -10,18 +10,18 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.CartCustomerResponse;
-import com.example.demo.ecommerce.dto.CartItemCustomerResponse;
+import com.example.demo.ecommerce.api.dto.CartCustomerResponse;
+import com.example.demo.ecommerce.api.dto.CartItemCustomerResponse;
 import com.example.demo.ecommerce.entity.Cart;
 import com.example.demo.ecommerce.entity.CartItem;
 import com.example.demo.ecommerce.entity.Inventory;
 import com.example.demo.ecommerce.entity.Product;
-import com.example.demo.ecommerce.entity.ProductStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
 import com.example.demo.ecommerce.repository.CartRepository;
 import com.example.demo.ecommerce.repository.InventoryRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

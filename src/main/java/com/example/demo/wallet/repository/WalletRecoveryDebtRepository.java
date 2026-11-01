@@ -1,4 +1,5 @@
 package com.example.demo.wallet.repository;
+import com.example.demo.wallet.api.WalletBalanceType;
 import java.util.*;
 import java.math.BigDecimal;
 import org.springframework.data.jpa.repository.*;

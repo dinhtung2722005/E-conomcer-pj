@@ -1,4 +1,15 @@
 package com.example.demo;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletStatus;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WithdrawRequest;
+import com.example.demo.wallet.api.dto.TopUpRequest;
+import com.example.demo.wallet.api.dto.TopUpInstructionsResponse;
+import com.example.demo.wallet.api.dto.SetupPinRequest;
+import com.example.demo.wallet.api.dto.LinkBankAccountRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.math.BigDecimal;
@@ -19,10 +30,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.*;
-import com.example.demo.user.exception.*;
+import com.example.demo.shared.error.*;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.gateway.BankGateway;
 import com.example.demo.wallet.repository.*;

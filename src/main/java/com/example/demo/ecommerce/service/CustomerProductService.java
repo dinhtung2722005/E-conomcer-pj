@@ -12,13 +12,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.ProductCustomerResponse;
+import com.example.demo.ecommerce.api.dto.ProductCustomerResponse;
 import com.example.demo.ecommerce.entity.Product;
-import com.example.demo.ecommerce.entity.ProductStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
 import com.example.demo.ecommerce.repository.ProductRepository;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

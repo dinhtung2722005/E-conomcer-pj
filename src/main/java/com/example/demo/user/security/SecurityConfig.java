@@ -22,8 +22,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.shared.error.ErrorCode;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

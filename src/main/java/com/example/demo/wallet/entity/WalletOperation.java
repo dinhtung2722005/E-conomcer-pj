@@ -1,4 +1,5 @@
 package com.example.demo.wallet.entity;
+import com.example.demo.wallet.api.TransactionType;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -9,12 +9,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.OrderRequest;
-import com.example.demo.ecommerce.dto.OrderResponse;
+import com.example.demo.ecommerce.api.dto.OrderRequest;
+import com.example.demo.ecommerce.api.dto.OrderResponse;
 import com.example.demo.ecommerce.service.CheckoutService;
 import com.example.demo.ecommerce.service.OrderService;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.service.CurrentUserService;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.user.api.UserAccountsApi;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,8 @@ public class CustomerOrderController {
 
     private final CheckoutService checkoutService;
     private final OrderService orderService;
-    private final CurrentUserService currentUserService;
+    private final com.example.demo.ecommerce.api.OrderWorkflowUseCase workflow;
+    private final UserAccountsApi currentUserService;
 
     /** Đặt hàng từ giỏ hiện tại. Trả về đơn vừa tạo (trước đây kết quả bị bỏ đi). */
     @PostMapping("/checkout")
@@ -56,6 +57,6 @@ public class CustomerOrderController {
     @PostMapping("/{id}/cancel")
     public ApiResponse<OrderResponse> cancelMyOrder(@PathVariable Long id) {
         return new ApiResponse<>(200, "Đã hủy đơn hàng",
-                orderService.cancelOrderByUser(id, currentUserService.getCurrentUserId()));
+                workflow.cancelOrderByUser(id, currentUserService.getCurrentUserId()));
     }
 }

@@ -1,4 +1,5 @@
 package com.example.demo.wallet.entity;
+import com.example.demo.wallet.api.WalletStatus;
 
 import java.time.LocalDateTime;
 
@@ -6,8 +7,7 @@ import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Immutable;
 
-import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
+import com.example.demo.user.api.UserRole;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -50,10 +50,8 @@ public class WalletStatusChange {
     @NotNull
     private Wallet wallet;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "actor_user_id", nullable = false, updatable = false)
-    @NotNull
-    private User actor;
+    @Column(name="actor_user_id",nullable=false,updatable=false)
+    @NotNull private Long actorId;
 
     @Column(name = "actor_role", nullable = false, length = 20, updatable = false)
     @Enumerated(EnumType.STRING)

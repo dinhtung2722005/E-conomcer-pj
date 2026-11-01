@@ -17,18 +17,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.ecommerce.entity.Order;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.wallet.entity.TransactionStatus;
-import com.example.demo.wallet.entity.TransactionType;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
 import com.example.demo.wallet.entity.Wallet;
-import com.example.demo.wallet.entity.WalletBalanceType;
+import com.example.demo.wallet.api.WalletBalanceType;
 import com.example.demo.wallet.entity.WalletHold;
-import com.example.demo.wallet.entity.WalletHoldStatus;
-import com.example.demo.wallet.entity.WalletHoldType;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletHoldType;
 import com.example.demo.wallet.entity.WalletSecurity;
-import com.example.demo.wallet.entity.WalletStatus;
+import com.example.demo.wallet.api.WalletStatus;
 import com.example.demo.wallet.entity.WalletTransaction;
 
 import jakarta.persistence.EntityManager;
@@ -148,7 +148,7 @@ class WalletEntityIntegrationTests {
     void sameOrderCanReserveCashAndBonusWithoutConvertingTheirSources() {
         WalletHold cash = orderHold("business-1");
         entities.persist(cash);
-        WalletHold bonus = WalletHold.builder().wallet(wallet).order(cash.getOrder()).referenceId("business-1")
+        WalletHold bonus = WalletHold.builder().wallet(wallet).orderId(cash.getOrderId()).referenceId("business-1")
                 .type(WalletHoldType.ORDER_PAYMENT).balanceType(WalletBalanceType.BONUS)
                 .amount(new BigDecimal("25")).build();
         entities.persist(bonus);
@@ -311,7 +311,7 @@ class WalletEntityIntegrationTests {
                 .receiverPhone("0900000000").shippingAddress("Test address").status(OrderStatus.PAID)
                 .totalAmount(new BigDecimal("100")).finalAmount(new BigDecimal("100")).build();
         entities.persist(order);
-        return WalletHold.builder().wallet(wallet).order(order).referenceId(reference)
+        return WalletHold.builder().wallet(wallet).orderId(order.getId()).referenceId(reference)
                 .type(WalletHoldType.ORDER_PAYMENT).amount(new BigDecimal("100")).build();
     }
 }

@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.example.demo.ecommerce.entity.FlashSale;
-import com.example.demo.ecommerce.entity.FlashSaleStatus;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
 
 public interface FlashSaleRepository extends JpaRepository<FlashSale, Long> {
 

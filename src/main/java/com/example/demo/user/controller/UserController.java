@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.UserCreationRequest;
-import com.example.demo.user.dto_request.UserProfileResponse;
-import com.example.demo.user.dto_request.UserUpdateRequest;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.user.api.dto.UserCreationRequest;
+import com.example.demo.user.api.dto.UserProfileResponse;
+import com.example.demo.user.api.dto.UserUpdateRequest;
 import com.example.demo.user.security.UserPrincipal;
 import com.example.demo.user.service.UserService;
 
@@ -36,11 +36,12 @@ import lombok.extern.slf4j.Slf4j;
 public class UserController {
 
     private final UserService userService;
+    private final com.example.demo.user.api.RegistrationUseCase registration;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UserProfileResponse> createUser(@Valid @RequestBody UserCreationRequest request) {
-        return new ApiResponse<>(201, "Tạo tài khoản thành công", userService.createUser(request));
+        return new ApiResponse<>(201, "Tạo tài khoản thành công", registration.createUser(request));
     }
 
     @GetMapping("/{id}")

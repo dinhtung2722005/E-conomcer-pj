@@ -1,4 +1,5 @@
 package com.example.demo.ecommerce.entity;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;

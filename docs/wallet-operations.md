@@ -15,11 +15,11 @@ Các service:
 | WalletPinService | BCrypt, thiết lập/đổi, giới hạn sai, cấp xác thực nội bộ ngắn hạn |
 | WalletOperationService | Khóa yêu cầu và fingerprint cho retry |
 | WalletFundingService / WalletBankWorker | Xác minh tài khoản qua gateway, nạp/rút và outbox |
-| WalletPaymentService | Khóa đơn/ví, giữ CASH/BONUS, xác nhận kho, PAID |
+| OrderPaymentApplicationService / WalletPaymentService | Điều phối khóa user/đơn, ví giữ CASH/BONUS, ecommerce xác nhận kho và PAID |
 | WalletOrderFundsService | Hoàn khi hủy trước giao, liên kết PAYMENT gốc, chống hoàn quá tiền |
-| WalletRefundService / WalletReturnService | Hoàn theo dòng/số lượng, quyền chủ đơn, ngoại lệ và duyệt ADMIN |
+| ReturnApplicationService / WalletRefundService / WalletReturnService | Điều phối quyền và đơn, hoàn theo dòng/số lượng, ngoại lệ và duyệt ADMIN |
 | WalletDebtService / WalletReserveService | Quỹ hoàn từ CASH, công nợ và thu hồi sau quyết toán |
-| WalletSettlementPolicy / WalletSettlementService | Snapshot, chia tiền người bán/phí, capture và cashback |
+| WalletSettlementPolicy / SettlementApplicationService / WalletSettlementService | Ecommerce snapshot chính sách, điều phối quyết toán, ví chia tiền/capture/cashback |
 | WalletLedgerService | Sổ đối ứng cân bằng, ghi cùng transaction thay đổi số dư |
 | WalletReconciliationService | So số dư với journal và pending với hold, không tự sửa tiền |
 
@@ -100,8 +100,9 @@ ngân hàng cần rà soát; timeout không tự giải phóng tiền rút.
 
 ## Database và kiểm thử
 
-Chưa chạy migration trên database ứng dụng. Dự án vẫn dùng cấu hình Hibernate
-hiện có; trước khi dùng database có dữ liệu, chuẩn bị migration/backfill theo
+Chưa chạy migration trên database ứng dụng. Profile prod dùng Flyway qua bước
+triển khai riêng và Hibernate validate; xem [hướng dẫn nâng cấp](wallet-hardening.md).
+Trước khi dùng database có dữ liệu cũ hơn bản baseline, chuẩn bị backfill theo
 [mô hình ví](wallet-model.md), gồm các bảng operation/outbox/journal/refund,
 ledger_opened và các snapshot đơn hàng. Không tự suy đoán trạng thái tiền cũ.
 

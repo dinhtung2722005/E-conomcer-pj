@@ -7,13 +7,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.LoginRequest;
-import com.example.demo.user.dto_request.LoginResponse;
-import com.example.demo.user.dto_request.UserCreationRequest;
-import com.example.demo.user.dto_request.UserProfileResponse;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.user.api.dto.LoginRequest;
+import com.example.demo.user.api.dto.LoginResponse;
+import com.example.demo.user.api.dto.UserCreationRequest;
+import com.example.demo.user.api.dto.UserProfileResponse;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.security.JwtUtils;
 import com.example.demo.user.service.AuthService;
 
@@ -27,11 +27,12 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.example.demo.user.api.RegistrationUseCase registration;
     private final JwtUtils jwtUtils;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserProfileResponse>> register(@Valid @RequestBody UserCreationRequest request) {
-        UserProfileResponse user = authService.register(request);
+        UserProfileResponse user = registration.register(request);
         return ResponseEntity.status(201)
                 .body(new ApiResponse<>(201, "Tài khoản đã được tạo thành công", user));
     }

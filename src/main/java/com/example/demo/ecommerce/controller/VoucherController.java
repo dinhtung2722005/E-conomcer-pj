@@ -1,4 +1,5 @@
 package com.example.demo.ecommerce.controller;
+import com.example.demo.ecommerce.api.dto.CategoryRequest;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,12 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.VoucherRequest;
-import com.example.demo.ecommerce.dto.VoucherResponse;
+import com.example.demo.ecommerce.api.dto.VoucherRequest;
+import com.example.demo.ecommerce.api.dto.VoucherResponse;
 import com.example.demo.ecommerce.service.VoucherService;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

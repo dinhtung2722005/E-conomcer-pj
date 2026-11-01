@@ -4,9 +4,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.FlashSaleCustomerResponse;
+import com.example.demo.ecommerce.api.dto.FlashSaleCustomerResponse;
 import com.example.demo.ecommerce.service.CustomerFlashSaleService;
-import com.example.demo.user.dto_request.ApiResponse;
+import com.example.demo.shared.web.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
 

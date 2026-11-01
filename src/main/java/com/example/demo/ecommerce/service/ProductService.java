@@ -1,4 +1,6 @@
 package com.example.demo.ecommerce.service;
+import com.example.demo.user.api.UserAccount;
+import com.example.demo.user.api.UserRole;
 
 import java.util.HashSet;
 import java.util.List;
@@ -7,19 +9,19 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.ProductRequest;
-import com.example.demo.ecommerce.dto.ProductResponse;
+import com.example.demo.ecommerce.api.dto.ProductRequest;
+import com.example.demo.ecommerce.api.dto.ProductResponse;
 import com.example.demo.ecommerce.entity.Category;
 import com.example.demo.ecommerce.entity.Product;
-import com.example.demo.ecommerce.entity.ProductStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
 import com.example.demo.ecommerce.mapper.ProductMapper;
 import com.example.demo.ecommerce.repository.CategoryRepository;
 import com.example.demo.ecommerce.repository.OrderItemRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,7 +33,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
-    private final com.example.demo.user.repository.UserRepository users;
+    private final com.example.demo.user.api.UserAccountsApi users;
 
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
@@ -106,8 +108,8 @@ public class ProductService {
     private Long validateSeller(Long id) {
         if (id == null) return null;
         return users.findById(id).filter(user -> user.isActive()
-                && user.getRole() == com.example.demo.user.entity.UserRole.SELLER)
-                .map(com.example.demo.user.entity.User::getId)
+                && user.getRole() == com.example.demo.user.api.UserRole.SELLER)
+                .map(com.example.demo.user.api.UserAccount::getId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Người bán phải là tài khoản SELLER đang hoạt động"));
     }
 

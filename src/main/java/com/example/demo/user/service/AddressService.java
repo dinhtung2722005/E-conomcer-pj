@@ -6,12 +6,12 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.user.dto_request.AddressRequest;
-import com.example.demo.user.dto_request.AddressResponse;
+import com.example.demo.user.api.dto.AddressRequest;
+import com.example.demo.user.api.dto.AddressResponse;
 import com.example.demo.user.entity.Address;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.AddressRepository;
 import com.example.demo.user.repository.UserRepository;
 

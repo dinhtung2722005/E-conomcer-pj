@@ -1,4 +1,8 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.RefundStatus;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletBalanceType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -6,8 +10,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.demo.ecommerce.entity.OrderStatus;
-import com.example.demo.ecommerce.repository.OrderRepository;
+import com.example.demo.ecommerce.api.OrderStatus;
+import com.example.demo.ecommerce.api.OrderSnapshot;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 /** Internal settlement. Order lock serializes return decisions, cancellation and settlement. */
 @Service @RequiredArgsConstructor
 public class WalletSettlementService {
-    private final OrderRepository orders;
     private final WalletRepository wallets;
     private final WalletTransactionRepository transactions;
     private final WalletHoldRepository holds;
@@ -24,15 +27,15 @@ public class WalletSettlementService {
     private final WalletRefundLineRepository refundLines;
     private final WalletDebtService debts;
 
-    @Transactional
-    public boolean settle(Long orderId) {
-        var order = orders.findByIdForUpdate(orderId).orElseThrow();
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public BigDecimal settle(OrderSnapshot order) {
+        Long orderId=order.getId();
         if (order.getStatus() != OrderStatus.COMPLETED || order.getSettledAt() != null
-                || order.getSettlementAvailableAt() == null || order.getSettlementAvailableAt().isAfter(LocalDateTime.now())) return false;
-        if (refunds.findFirstByOrderIdOrderByIdDesc(orderId).filter(row -> row.getStatus() == WalletRefundCase.Status.REQUESTED).isPresent()) return false;
+                || order.getSettlementAvailableAt() == null || order.getSettlementAvailableAt().isAfter(LocalDateTime.now())) return null;
+        if (refunds.findFirstByOrderIdOrderByIdDesc(orderId).filter(row -> row.getStatus() == RefundStatus.REQUESTED).isPresent()) return null;
         var returned=refundLines.approved(orderId);
         Map<Long,BigDecimal> returnedAmounts=new HashMap<>(),returnedFees=new HashMap<>();
-        returned.forEach(l->{returnedAmounts.merge(l.getItem().getId(),l.getAmount(),BigDecimal::add);returnedFees.merge(l.getItem().getId(),l.getFeeAmount(),BigDecimal::add);});
+        returned.forEach(l->{returnedAmounts.merge(l.getOrderItemId(),l.getAmount(),BigDecimal::add);returnedFees.merge(l.getOrderItemId(),l.getFeeAmount(),BigDecimal::add);});
         BigDecimal due=order.getFinalAmount().subtract(order.getRefundedAmount());
         Set<Long> userIds = new HashSet<>(); userIds.add(order.getUserId());
         BigDecimal allocated = BigDecimal.ZERO;
@@ -105,8 +108,6 @@ public class WalletSettlementService {
             BigDecimal recovered=debts.collect(buyer,WalletBalanceType.BONUS,cashback);
             if(recovered.signum()>0){buyer.setBonusBalance(buyer.getBonusBalance().subtract(recovered));transactions.saveAndFlush(WalletTransaction.builder().wallet(buyer).referenceId(orderId.toString()).idempotencyKey("bonus-debt:"+orderId).type(TransactionType.CASHBACK_REVERSAL).balanceType(WalletBalanceType.BONUS).amount(recovered).originalTransaction(grant).status(TransactionStatus.SUCCESS).completedAt(LocalDateTime.now()).build());ledger.move("bonus-debt:"+orderId,buyer.getCurrency(),ledger.account(buyer,WalletBalanceType.BONUS,false),"platform:PROMOTIONS",recovered);}
         }
-        order.setSettledAmount(due);order.setSettledAt(LocalDateTime.now()); orders.saveAndFlush(order);
-        order.setSettlementLastError(null); order.setSettlementNextAttemptAt(null);
-        return true;
+        return due;
     }
 }

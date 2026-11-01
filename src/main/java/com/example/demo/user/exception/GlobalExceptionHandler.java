@@ -1,4 +1,6 @@
 package com.example.demo.user.exception;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
 
 import java.util.stream.Collectors;
 
@@ -20,7 +22,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import com.example.demo.user.dto_request.ApiResponse;
+import com.example.demo.shared.web.ApiResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;

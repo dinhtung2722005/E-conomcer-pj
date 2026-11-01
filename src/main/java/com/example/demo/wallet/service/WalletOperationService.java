@@ -1,4 +1,5 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionType;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -6,8 +7,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.WalletOperationRepository;
 import lombok.RequiredArgsConstructor;

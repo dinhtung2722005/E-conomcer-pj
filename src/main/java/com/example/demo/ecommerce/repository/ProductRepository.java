@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.example.demo.ecommerce.entity.Product;
-import com.example.demo.ecommerce.entity.ProductStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 

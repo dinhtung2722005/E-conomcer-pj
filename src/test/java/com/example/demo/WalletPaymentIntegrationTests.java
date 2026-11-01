@@ -1,4 +1,13 @@
 package com.example.demo;
+import com.example.demo.ecommerce.api.OrderWorkflowUseCase;
+import com.example.demo.wallet.api.OrderPaymentUseCase;
+import com.example.demo.ecommerce.service.WalletSettlementPolicy;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.ecommerce.api.ProductStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -21,10 +30,10 @@ import com.example.demo.ecommerce.repository.*;
 import com.example.demo.ecommerce.service.*;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.*;
-import com.example.demo.user.exception.*;
+import com.example.demo.shared.error.*;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
-import com.example.demo.wallet.dto.PayOrderRequest;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import com.example.demo.wallet.service.*;
@@ -32,9 +41,9 @@ import com.example.demo.wallet.service.*;
 @SpringBootTest(properties = {"debug=false", "logging.level.org.springframework=WARN", "logging.level.org.hibernate=WARN"})
 @ContextConfiguration(initializers = IsolatedMySqlDatabase.class)
 class WalletPaymentIntegrationTests {
-    @Autowired WalletPaymentService payments;
+    @Autowired OrderPaymentUseCase payments;
     @Autowired WalletService walletService;
-    @Autowired OrderService orderService;
+    @Autowired OrderWorkflowUseCase orderService;
     @Autowired UserRepository users;
     @Autowired WalletRepository wallets;
     @Autowired WalletSecurityRepository security;
@@ -46,6 +55,9 @@ class WalletPaymentIntegrationTests {
     @Autowired PasswordEncoder encoder;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired WalletSettlementPolicy policy;
+    @Autowired com.example.demo.wallet.api.WalletPaymentsApi moneyApi;
+    @Autowired com.example.demo.ecommerce.api.OrderLifecycleApi orderApi;
+    @Autowired WalletLimitReservationRepository quotas;
     private Long sellerId;
     @MockitoSpyBean InventoryService inventory;
     private User owner;
@@ -104,6 +116,7 @@ class WalletPaymentIntegrationTests {
         money("0", wallet().getPendingBalance()); money("0", wallet().getPendingBonusBalance());
         assertTrue(holds.findByWalletIdAndOrderIdOrderByIdAsc(walletId, order.getId()).isEmpty());
         assertTrue(transactions.findByWalletIdAndReferenceIdOrderByIdAsc(walletId, order.getId().toString()).isEmpty());
+        assertEquals(0,quotas.countByWalletId(walletId));
         assertEquals(OrderStatus.PENDING, orders.findById(order.getId()).orElseThrow().getStatus());
     }
 
@@ -148,6 +161,32 @@ class WalletPaymentIntegrationTests {
             assertNotEquals(first.get(20, TimeUnit.SECONDS), second.get(20, TimeUnit.SECONDS));
         }
         money("20", wallet().getBalance()); money("80", wallet().getPendingBalance());
+    }
+
+    @Test void forgedPaymentPermitCannotAuthorizeMoneyMovement(){
+        error(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED,()->new TransactionTemplate(transactionManager)
+                .executeWithoutResult(tx->moneyApi.lockPayer(new com.example.demo.wallet.api.PaymentPermit(){})));
+        money("100",wallet().getBalance());money("0",wallet().getPendingBalance());
+    }
+
+    @Test void paymentPermitRequiresAccountLockInTheSameTransaction(){
+        var order=order("20");var permit=moneyApi.authorizePayment(order.getId(),request(false));
+        error(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED,()->new TransactionTemplate(transactionManager).executeWithoutResult(tx->{
+            var snapshot=orderApi.lock(order.getId(),owner.getId());moneyApi.reserve(snapshot,permit,"missing-account-lock");
+        }));
+        new TransactionTemplate(transactionManager).executeWithoutResult(tx->moneyApi.lockPayer(permit));
+        error(ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED,()->new TransactionTemplate(transactionManager).executeWithoutResult(tx->{
+            var snapshot=orderApi.lock(order.getId(),owner.getId());moneyApi.reserve(snapshot,permit,"lock-from-other-transaction");
+        }));
+        money("100",wallet().getBalance());money("0",wallet().getPendingBalance());
+    }
+
+    @Test void paymentPermitCannotBeAppliedToAnotherOrder(){
+        var first=order("20");var second=order("20");var permit=moneyApi.authorizePayment(first.getId(),request(false));
+        error(ErrorCode.ACCESS_DENIED,()->new TransactionTemplate(transactionManager).executeWithoutResult(tx->{
+            moneyApi.lockPayer(permit);moneyApi.reserve(orderApi.lock(second.getId(),owner.getId()),permit,"different-order");
+        }));
+        money("100",wallet().getBalance());money("0",wallet().getPendingBalance());
     }
 
     private boolean attempt(Long orderId, CountDownLatch start) throws Exception {

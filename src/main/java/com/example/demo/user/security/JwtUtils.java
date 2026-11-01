@@ -52,13 +52,13 @@ public class JwtUtils {
     }
 
     /**
-     * Khóa ký lấy từ biến môi trường {@code JWT_SECRET} (chuỗi Base64 ≥ 256 bit).
+     * Khóa ký lấy từ biến môi trường {@code APP_JWT_SECRET} (chuỗi Base64 ≥ 256 bit).
      * Nếu chưa cấu hình, sinh khóa ngẫu nhiên cho môi trường dev — token sẽ hết
      * hiệu lực sau mỗi lần khởi động lại.
      */
     private static Key buildSigningKey(String jwtSecret) {
         if (!StringUtils.hasText(jwtSecret)) {
-            log.warn("Chưa cấu hình app.jwt.secret (biến môi trường JWT_SECRET). "
+            log.warn("Chưa cấu hình app.jwt.secret (biến môi trường APP_JWT_SECRET). "
                     + "Đang dùng khóa ngẫu nhiên tạm thời — mọi token sẽ mất hiệu lực khi restart.");
             return Keys.secretKeyFor(SIGNATURE_ALGORITHM);
         }

@@ -4,15 +4,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.user.dto_request.ChangePasswordRequest;
-import com.example.demo.user.dto_request.UserCreationRequest;
-import com.example.demo.user.dto_request.UserProfileResponse;
-import com.example.demo.user.dto_request.UserProfileUpdateRequest;
-import com.example.demo.user.dto_request.UserUpdateRequest;
+import com.example.demo.user.api.dto.ChangePasswordRequest;
+import com.example.demo.user.api.dto.UserCreationRequest;
+import com.example.demo.user.api.dto.UserProfileResponse;
+import com.example.demo.user.api.dto.UserProfileUpdateRequest;
+import com.example.demo.user.api.dto.UserUpdateRequest;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-    private final com.example.demo.wallet.service.WalletService walletService;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -28,7 +27,7 @@ public class UserService {
 
     /** Tạo người dùng với vai trò CUSTOMER. Mật khẩu luôn được hash. */
     @Transactional
-    public UserProfileResponse createUser(UserCreationRequest request) {
+    UserProfileResponse createAccount(UserCreationRequest request) {
         String username = request.getUsername().trim();
         String email = request.getEmail().trim().toLowerCase();
 
@@ -47,7 +46,6 @@ public class UserService {
                 .build();
 
         User saved = userRepository.save(user);
-        walletService.initializeWallet(saved.getId());
         return toProfileResponse(saved);
     }
 

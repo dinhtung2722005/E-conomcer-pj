@@ -1,4 +1,8 @@
 package com.example.demo.wallet.entity;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletHoldType;
+import com.example.demo.wallet.api.WalletBalanceType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

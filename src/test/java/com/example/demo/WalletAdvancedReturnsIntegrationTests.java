@@ -1,4 +1,23 @@
 package com.example.demo;
+import com.example.demo.ecommerce.api.OrderWorkflowUseCase;
+import com.example.demo.wallet.api.SettlementUseCase;
+import com.example.demo.wallet.api.OrderPaymentUseCase;
+import com.example.demo.wallet.api.RefundStatus;
+import com.example.demo.ecommerce.service.WalletSettlementPolicy;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.ecommerce.api.ProductStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WithdrawRequest;
+import com.example.demo.wallet.api.dto.WalletReserveFundingRequest;
+import com.example.demo.wallet.api.dto.WalletBankActionRequest;
+import com.example.demo.wallet.api.dto.RefundDecisionRequest;
+import com.example.demo.wallet.api.dto.RefundCaseResponse;
+import com.example.demo.wallet.api.dto.RefundCaseRequest;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
+import com.example.demo.wallet.api.dto.LinkBankAccountRequest;
 import static org.junit.jupiter.api.Assertions.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,14 +36,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.*;
-import com.example.demo.user.exception.*;
+import com.example.demo.shared.error.*;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
 import com.example.demo.ecommerce.entity.*;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.repository.*;
-import com.example.demo.ecommerce.service.OrderService;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import com.example.demo.wallet.service.*;
@@ -34,13 +52,15 @@ import com.example.demo.wallet.service.*;
 class WalletAdvancedReturnsIntegrationTests {
     static final AtomicInteger CURRENCIES=new AtomicInteger();
     @Autowired UserRepository users;@Autowired WalletRepository wallets;@Autowired WalletSecurityRepository security;
-    @Autowired WalletPaymentService payments;@Autowired WalletRefundService refunds;@Autowired WalletSettlementService settlement;
+    @Autowired OrderPaymentUseCase payments;@Autowired WalletRefundService refunds;@Autowired SettlementUseCase settlement;
     @Autowired WalletReserveService reserve;@Autowired WalletRecoveryDebtRepository debts;@Autowired WalletRefundReserveRepository reserves;
     @Autowired WalletRefundCaseRepository cases;@Autowired WalletHoldRepository holds;@Autowired WalletJournalRepository journals;
-    @Autowired WalletReconciliationService reconciliation;@Autowired OrderService orderService;@Autowired WalletSettlementPolicy policy;
+    @Autowired WalletReconciliationService reconciliation;@Autowired OrderWorkflowUseCase orderService;@Autowired WalletSettlementPolicy policy;
     @Autowired OrderRepository orders;@Autowired ProductRepository products;@Autowired InventoryRepository inventories;
     @Autowired PlatformTransactionManager manager;@Autowired PasswordEncoder encoder;
     @Autowired WalletFundingService funding;@Autowired WalletBankWorker bankWorker;@Autowired WalletBankManagementService banks;@Autowired BankTransferRepository transfers;
+    @Autowired WalletFundingIntegrationTests.ScriptedBank bank;
+    @Autowired com.example.demo.ecommerce.api.OrderLifecycleApi orderApi;
     User buyer,seller,admin;Wallet buyerWallet,sellerWallet,adminWallet;String currency;
     @BeforeEach void prepare(){
         int n=CURRENCIES.getAndIncrement();currency="Z"+(char)('A'+n/26)+(char)('A'+n%26);
@@ -51,6 +71,8 @@ class WalletAdvancedReturnsIntegrationTests {
     @Test void partialReturnRestoresOriginalSourcesAndSettlementPaysOnlyRemainingAmount(){
         var order=paid(3,"20",true,false);complete(order);var c=request(order,1,false);approve(order,c);
         money("20",orders.findById(order.getId()).orElseThrow().getRefundedAmount());money("986.6666",fresh(buyerWallet).getBalance());money("13.3334",fresh(buyerWallet).getBonusBalance());
+        var page=new com.example.demo.shared.web.PageQuery();page.setSize(100);
+        money("40",orderApi.unsettled(page).getData().stream().filter(row->row.orderId().equals(order.getId())).findFirst().orElseThrow().amount());
         due(order);assertTrue(settlement.settle(order.getId()));money("40",fresh(sellerWallet).getBalance());money("0",fresh(buyerWallet).getPendingBalance());money("0",fresh(buyerWallet).getPendingBonusBalance());
         checkLedger(buyerWallet);checkLedger(sellerWallet);
     }
@@ -70,7 +92,7 @@ class WalletAdvancedReturnsIntegrationTests {
     @Test void insufficientReserveRollsBackRefundAndLeavesCasePending(){
         var order=paid(1,"20",false,false);complete(order);due(order);settlement.settle(order.getId());spendSellerCash();
         var c=request(order,1,true);auth(admin);error(ErrorCode.WALLET_REFUND_RESERVE_INSUFFICIENT,()->refunds.decide(order.getId(),decision(c)));
-        assertEquals(WalletRefundCase.Status.REQUESTED,cases.findById(c.getId()).orElseThrow().getStatus());money("980",fresh(buyerWallet).getBalance());money("0",debts.total(seller.getId(),WalletBalanceType.CASH,currency));
+        assertEquals(RefundStatus.REQUESTED,cases.findById(c.getId()).orElseThrow().getStatus());money("980",fresh(buyerWallet).getBalance());money("0",debts.total(seller.getId(),WalletBalanceType.CASH,currency));
     }
     @Test void reserveIsPrefundedAndNextSellerSettlementRepaysActualAdvance(){
         var order=paid(1,"20",false,false);complete(order);due(order);settlement.settle(order.getId());spendSellerCash();
@@ -111,7 +133,20 @@ class WalletAdvancedReturnsIntegrationTests {
         auth(admin);reserve.fund(new WalletReserveFundingRequest(new BigDecimal("20"),"123456","Prefund refund"),"fund");var c=request(order,1,true);approve(order,c);
         var transfer=transfers.findByTransactionId(withdrawal.getTransactionId()).orElseThrow();bankWorker.process(transfer.getId());assertTrue(transfers.findById(transfer.getId()).orElseThrow().isSuspended());
         auth(seller);banks.cancelWithdrawal(withdrawal.getTransactionId(),new WalletBankActionRequest("123456","Repay refund debt"));
+        error(ErrorCode.WALLET_DEBT_OUTSTANDING,this::spendSellerCash);
         reserve.repay(new WalletReserveFundingRequest(new BigDecimal("20"),"123456","Repay refund advance"),"repay");money("0",fresh(sellerWallet).getBalance());money("0",debts.total(seller.getId(),WalletBalanceType.CASH,currency));money("20",reserves.findById(currency).orElseThrow().getBalance());checkLedger(sellerWallet);
+    }
+    @Test void successfulDepositRepaysCashDebtBeforeMakingRemainderAvailable(){
+        var order=paid(1,"20",false,false);complete(order);due(order);settlement.settle(order.getId());spendSellerCash();
+        auth(admin);reserve.fund(new WalletReserveFundingRequest(new BigDecimal("20"),"123456","Prefund refund"),"fund");
+        var c=request(order,1,true);approve(order,c);money("20",debts.total(seller.getId(),WalletBalanceType.CASH,currency));
+        auth(seller);var link=new LinkBankAccountRequest();link.setVerificationToken("verified:"+seller.getId());
+        var topUp=new com.example.demo.wallet.api.dto.TopUpRequest();topUp.setAmount(new BigDecimal("30"));topUp.setLinkedBankAccountId(funding.linkAccount(link).getLinkedBankAccountId());
+        var deposit=funding.topUp(topUp,"repay-from-deposit");var transfer=transfers.findByTransactionId(deposit.getTransactionId()).orElseThrow();
+        bank.states.put(transfer.getMerchantReference(),com.example.demo.wallet.gateway.BankGateway.State.SUCCEEDED);
+        bankWorker.process(transfer.getId());bankWorker.process(transfer.getId());
+        money("0",debts.total(seller.getId(),WalletBalanceType.CASH,currency));money("10",fresh(sellerWallet).getBalance());
+        money("20",reserves.findById(currency).orElseThrow().getBalance());checkLedger(sellerWallet);
     }
     private void spendSellerCash(){
         User merchant=user(UserRole.SELLER);wallet(merchant,"0","0");

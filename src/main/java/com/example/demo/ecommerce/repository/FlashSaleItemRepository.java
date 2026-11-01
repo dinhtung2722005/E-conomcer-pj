@@ -14,7 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.example.demo.ecommerce.entity.FlashSaleItem;
-import com.example.demo.ecommerce.entity.FlashSaleStatus;
+import com.example.demo.ecommerce.api.FlashSaleStatus;
 
 import jakarta.persistence.LockModeType;
 

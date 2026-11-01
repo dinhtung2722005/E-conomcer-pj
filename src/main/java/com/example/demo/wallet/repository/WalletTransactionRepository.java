@@ -13,8 +13,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.example.demo.wallet.entity.TransactionStatus;
-import com.example.demo.wallet.entity.TransactionType;
+import com.example.demo.wallet.api.TransactionStatus;
+import com.example.demo.wallet.api.TransactionType;
 import com.example.demo.wallet.entity.WalletTransaction;
 
 import jakarta.persistence.LockModeType;
@@ -26,8 +26,8 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     Optional<Long> findWalletId(Long id);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from WalletTransaction t where t.wallet.id = :walletId and t.referenceId = :reference "
-            + "and t.type = com.example.demo.wallet.entity.TransactionType.PAYMENT "
-            + "and t.status = com.example.demo.wallet.entity.TransactionStatus.SUCCESS order by t.id")
+            + "and t.type = com.example.demo.wallet.api.TransactionType.PAYMENT "
+            + "and t.status = com.example.demo.wallet.api.TransactionStatus.SUCCESS order by t.id")
     List<WalletTransaction> findOrderPaymentsForUpdate(Long walletId, String reference);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<WalletTransaction> findByOperationIdOrderByIdAsc(Long operationId);

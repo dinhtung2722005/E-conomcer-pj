@@ -1,4 +1,17 @@
 package com.example.demo.wallet.service;
+import com.example.demo.wallet.api.TransactionType;
+import com.example.demo.wallet.api.WalletHoldType;
+import com.example.demo.wallet.api.WalletStatus;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WithdrawResponse;
+import com.example.demo.wallet.api.dto.WithdrawRequest;
+import com.example.demo.wallet.api.dto.TopUpResponse;
+import com.example.demo.wallet.api.dto.TopUpRequest;
+import com.example.demo.wallet.api.dto.TopUpInstructionsResponse;
+import com.example.demo.wallet.api.dto.LinkBankAccountRequest;
+import com.example.demo.wallet.api.dto.BankAccountSummaryResponse;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,9 +24,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import com.example.demo.user.exception.*;
-import com.example.demo.user.service.CurrentUserService;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.shared.error.*;
+import com.example.demo.user.api.UserAccountsApi;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.gateway.BankGateway;
 import com.example.demo.wallet.repository.*;
@@ -32,18 +45,20 @@ public class WalletFundingService {
     private final BankTransferRepository transfers;
     private final WalletOperationService operations;
     private final WalletPinService pins;
-    private final CurrentUserService currentUser;
+    private final UserAccountsApi currentUser;
     private final ObjectProvider<BankGateway> gateways;
     private final PlatformTransactionManager transactionManager;
     private final ObjectMapper json;
     private final WalletLedgerService ledger;
     private final WalletRecoveryDebtRepository debts;
+    private final WalletRiskService risks;
+    private final com.example.demo.wallet.gateway.WalletBankClient bankClient;
 
     public BankAccountSummaryResponse linkAccount(@NotNull @Valid LinkBankAccountRequest request) {
         Long userId = activeUserId();
         BankGateway gateway = gateway();
         // Network ownership verification takes place outside the database transaction.
-        BankGateway.VerifiedAccount verified = gateway.verifyOwnership(userId, request.getVerificationToken());
+        BankGateway.VerifiedAccount verified = bankClient.verifyOwnership(gateway,userId,request.getVerificationToken());
         validateVerifiedAccount(verified);
         return new TransactionTemplate(transactionManager).execute(status -> {
             Wallet wallet = lockWallet(userId);
@@ -101,7 +116,7 @@ public class WalletFundingService {
                 return withdrawResponse(transfers.findByTransactionOperationId(existing.get().getId()).orElseThrow());
             }
             if (wallet.getStatus() != WalletStatus.ACTIVE) throw new AppException(ErrorCode.WALLET_LOCKED);
-            if(debts.total(wallet.getUserId(),WalletBalanceType.CASH,wallet.getCurrency()).signum()>0)throw new AppException(ErrorCode.WALLET_DEBT_OUTSTANDING);
+            if(!debts.outstanding(wallet.getUserId(),WalletBalanceType.CASH,wallet.getCurrency()).isEmpty())throw new AppException(ErrorCode.WALLET_DEBT_OUTSTANDING);
             if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
                 throw new AppException(ErrorCode.WALLET_INSUFFICIENT_BALANCE);
             }
@@ -137,6 +152,7 @@ public class WalletFundingService {
         String reference = UUID.randomUUID().toString();
         ledger.open(wallet);
         var operation = operations.create(wallet, key, fingerprint, type, reference);
+        risks.reserve(wallet,operation,amount);
         WalletHold hold = null;
         if (type == TransactionType.WITHDRAW) {
             hold = holds.saveAndFlush(WalletHold.builder().wallet(wallet).type(WalletHoldType.WITHDRAWAL)

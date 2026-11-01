@@ -1,11 +1,22 @@
 package com.example.demo;
+import com.example.demo.ecommerce.api.OrderWorkflowUseCase;
+import com.example.demo.wallet.api.SettlementUseCase;
+import com.example.demo.wallet.api.OrderPaymentUseCase;
+import com.example.demo.ecommerce.service.WalletSettlementPolicy;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletStatus;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.WithdrawRequest;
+import com.example.demo.wallet.api.dto.WalletFreezeRequest;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
+import com.example.demo.wallet.api.dto.LinkBankAccountRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,21 +38,20 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.demo.ecommerce.entity.Order;
 import com.example.demo.ecommerce.entity.OrderItem;
-import com.example.demo.ecommerce.entity.OrderStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
 import com.example.demo.ecommerce.entity.Product;
-import com.example.demo.ecommerce.entity.ProductStatus;
+import com.example.demo.ecommerce.api.ProductStatus;
 import com.example.demo.ecommerce.entity.Inventory;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.ecommerce.repository.ProductRepository;
 import com.example.demo.ecommerce.repository.InventoryRepository;
-import com.example.demo.ecommerce.service.OrderService;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
+import com.example.demo.user.api.UserRole;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
 import com.example.demo.user.service.AdminUserService;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.gateway.BankGateway;
 import com.example.demo.wallet.repository.*;
@@ -74,8 +84,8 @@ class WalletSafetyIntegrationTests {
     @Autowired ProductRepository products;
     @Autowired InventoryRepository inventories;
     @Autowired WalletService walletService;
-    @Autowired WalletPaymentService payments;
-    @Autowired WalletSettlementService settlement;
+    @Autowired OrderPaymentUseCase payments;
+    @Autowired SettlementUseCase settlement;
     @Autowired WalletSettlementPolicy policy;
     @Autowired WalletFundingService funding;
     @Autowired WalletBankWorker bankWorker;
@@ -83,7 +93,7 @@ class WalletSafetyIntegrationTests {
     @Autowired WalletHoldRepository holds;
     @Autowired WalletLedgerService ledger;
     @Autowired WalletJournalRepository journals;
-    @Autowired OrderService orderService;
+    @Autowired OrderWorkflowUseCase orderService;
     @Autowired WalletJobCursorService cursors;
     @Autowired WalletAlertService alerts;
     @Autowired WalletSettlementRetryService retries;
@@ -114,16 +124,16 @@ class WalletSafetyIntegrationTests {
 
     @Test void paymentRejectsMissingSellerBeforeHoldingMoney() {
         Order order = orderWithoutSeller();
-        var exception = assertThrows(com.example.demo.user.exception.AppException.class,
+        var exception = assertThrows(com.example.demo.shared.error.AppException.class,
                 () -> payments.payOrder(order.getId(), payRequest(), "pay"));
-        assertEquals(com.example.demo.user.exception.ErrorCode.WALLET_ORDER_NOT_READY, exception.getErrorCode());
+        assertEquals(com.example.demo.shared.error.ErrorCode.WALLET_ORDER_NOT_READY, exception.getErrorCode());
         assertEquals(0, wallets.findById(walletId).orElseThrow().getPendingBalance().signum());
         assertEquals(OrderStatus.PENDING, orders.findById(order.getId()).orElseThrow().getStatus());
     }
 
     @Test void settlementWorkerContinuesPast1000BlockedRowsOnNextSweep() {
-        OrderRepository repository = mock(OrderRepository.class);
-        WalletSettlementService service = mock(WalletSettlementService.class);
+        com.example.demo.ecommerce.api.OrderLifecycleApi repository = mock(com.example.demo.ecommerce.api.OrderLifecycleApi.class);
+        SettlementUseCase service = mock(SettlementUseCase.class);
         when(repository.findSettlementDueIds(any(), anyLong(), any())).thenAnswer(invocation -> {
             long cursor = invocation.getArgument(1);
             return LongStream.rangeClosed(cursor + 1, Math.min(cursor + 100, 1001)).boxed().toList();
@@ -144,10 +154,10 @@ class WalletSafetyIntegrationTests {
             adminUsers.updateUserStatus(buyer.getId(), false);
             return authorization;
         }).when(pinTarget).authorize(anyString(), anyString());
-        var failure = assertThrows(com.example.demo.user.exception.AppException.class,
+        var failure = assertThrows(com.example.demo.shared.error.AppException.class,
                 () -> payments.payOrder(order.getId(), payRequest(), "pay-after-lock"));
         assertFalse(users.findById(buyer.getId()).orElseThrow().isActive());
-        assertEquals(com.example.demo.user.exception.ErrorCode.USER_LOCKED, failure.getErrorCode());
+        assertEquals(com.example.demo.shared.error.ErrorCode.USER_LOCKED, failure.getErrorCode());
         assertEquals(0, new BigDecimal("100").compareTo(wallets.findById(walletId).orElseThrow().getBalance()));
     }
 
@@ -170,8 +180,8 @@ class WalletSafetyIntegrationTests {
     @Test void revokedSessionAfterPinAuthorizationStopsDebitEvenWhenUserRemainsActive() {
         Order order=orderWithoutSeller();WalletPinService target=org.springframework.test.util.AopTestUtils.getUltimateTargetObject(pins);
         doAnswer(invocation->{Object auth=invocation.callRealMethod();sessions.revokeAllSessions(buyer.getId());return auth;}).when(target).authorize(anyString(),anyString());
-        var error=assertThrows(com.example.demo.user.exception.AppException.class,()->payments.payOrder(order.getId(),payRequest(),"revoked-session"));
-        assertEquals(com.example.demo.user.exception.ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED,error.getErrorCode());assertEquals(0,new BigDecimal("100").compareTo(wallets.findById(walletId).orElseThrow().getBalance()));
+        var error=assertThrows(com.example.demo.shared.error.AppException.class,()->payments.payOrder(order.getId(),payRequest(),"revoked-session"));
+        assertEquals(com.example.demo.shared.error.ErrorCode.WALLET_PIN_AUTHORIZATION_EXPIRED,error.getErrorCode());assertEquals(0,new BigDecimal("100").compareTo(wallets.findById(walletId).orElseThrow().getBalance()));
     }
 
     @Test void ledgerRejectsRoundingBeforePersistingAnyJournal() {

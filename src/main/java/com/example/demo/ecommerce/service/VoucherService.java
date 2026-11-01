@@ -5,17 +5,17 @@ import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.ecommerce.dto.VoucherRequest;
-import com.example.demo.ecommerce.dto.VoucherResponse;
-import com.example.demo.ecommerce.entity.DiscountType;
+import com.example.demo.ecommerce.api.dto.VoucherRequest;
+import com.example.demo.ecommerce.api.dto.VoucherResponse;
+import com.example.demo.ecommerce.api.DiscountType;
 import com.example.demo.ecommerce.entity.Voucher;
 import com.example.demo.ecommerce.mapper.VoucherMapper;
 import com.example.demo.ecommerce.repository.OrderRepository;
 import com.example.demo.ecommerce.repository.VoucherRepository;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
+import com.example.demo.shared.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 

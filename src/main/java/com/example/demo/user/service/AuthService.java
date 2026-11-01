@@ -7,19 +7,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.user.dto_request.LoginRequest;
-import com.example.demo.user.dto_request.UserCreationRequest;
-import com.example.demo.user.dto_request.UserProfileResponse;
+import com.example.demo.user.api.dto.LoginRequest;
+import com.example.demo.user.api.dto.UserCreationRequest;
+import com.example.demo.user.api.dto.UserProfileResponse;
 import com.example.demo.user.entity.InvalidatedToken;
 import com.example.demo.user.entity.RefreshToken;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.AppException;
-import com.example.demo.user.exception.ErrorCode;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.shared.error.ErrorCode;
 import com.example.demo.user.repository.InvalidatedTokenRepository;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.JwtUtils;
-import com.example.demo.wallet.service.WalletService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,13 +37,12 @@ public class AuthService {
     private final InvalidatedTokenRepository invalidatedTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessionRevocationService sessionRevocationService;
-    private final WalletService walletService;
 
     /** Kết quả nội bộ, chỉ accessToken và hồ sơ được đưa vào JSON; refreshToken đi qua cookie. */
     public record Session(UserProfileResponse user, String accessToken, String refreshToken) {}
 
     @Transactional
-    public UserProfileResponse register(UserCreationRequest request) {
+    UserProfileResponse createAccount(UserCreationRequest request) {
         String username = request.getUsername().trim();
         String email = request.getEmail().trim().toLowerCase();
 
@@ -63,7 +61,6 @@ public class AuthService {
                 .build();
 
         User saved = userRepository.save(user);
-        walletService.initializeWallet(saved.getId());
         return toProfile(saved);
     }
 

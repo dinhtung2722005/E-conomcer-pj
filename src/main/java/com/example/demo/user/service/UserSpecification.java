@@ -7,7 +7,7 @@ import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
+import com.example.demo.user.api.UserRole;
 
 import jakarta.persistence.criteria.Predicate;
 

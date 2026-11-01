@@ -1,4 +1,6 @@
 package com.example.demo;
+import com.example.demo.wallet.api.AlertStatus;
+import com.example.demo.user.api.UserRole;
 import static org.junit.jupiter.api.Assertions.*;
 import java.net.*;
 import java.net.http.*;
@@ -6,8 +8,6 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ContextConfiguration;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.*;
@@ -16,8 +16,7 @@ import com.example.demo.user.security.*;
 import com.example.demo.wallet.service.*;
 import com.example.demo.wallet.repository.*;
 import com.example.demo.wallet.entity.*;
-import com.example.demo.wallet.dto.*;
-import com.example.demo.user.dto_request.PageQuery;
+import com.example.demo.wallet.api.dto.*;
 import tools.jackson.databind.ObjectMapper;
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"debug=false","logging.level.org.springframework=WARN","logging.level.org.hibernate=WARN"})
 @ContextConfiguration(initializers=IsolatedMySqlDatabase.class)
@@ -51,7 +50,7 @@ class WalletOpsIntegrationTests {
         var response=http("/api/admin/wallet-ops/alerts/"+row.getId()+"/review",jwt.generateToken(admin),"{\"status\":\"ACKNOWLEDGED\",\"reason\":\"Investigating\"}");
         assertEquals(200,response.statusCode(),response.body()); assertEquals(before+1,audit.count());
         assertEquals(admin.getId(),alertRows.findById(row.getId()).orElseThrow().getReviewedBy());
-        alerts.record("TEST",reference,"Still pending"); assertEquals(WalletAlert.Status.ACKNOWLEDGED,alertRows.findById(row.getId()).orElseThrow().getStatus());
+        alerts.record("TEST",reference,"Still pending"); assertEquals(AlertStatus.ACKNOWLEDGED,alertRows.findById(row.getId()).orElseThrow().getStatus());
     }
     @Test void checkpointContinuesAcrossCallersAndWrapsAfterEnd() {
         String name="test-"+UUID.randomUUID().toString().substring(0,8);

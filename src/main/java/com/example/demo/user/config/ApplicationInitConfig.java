@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
+import com.example.demo.user.api.UserRole;
 import com.example.demo.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;

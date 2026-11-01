@@ -9,10 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.CartCustomerResponse;
+import com.example.demo.ecommerce.api.dto.CartCustomerResponse;
 import com.example.demo.ecommerce.service.CartService;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.service.CurrentUserService;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.user.api.UserAccountsApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class CustomerCartController {
 
     private final CartService cartService;
-    private final CurrentUserService currentUserService;
+    private final UserAccountsApi currentUserService;
 
     @GetMapping
     public ApiResponse<CartCustomerResponse> getMyCart() {

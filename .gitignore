@@ -1,6 +1,11 @@
 HELP.md
 target/
 logs/
+.env
+.env.*
+!.env.example
+application-local.properties
+config/*-local.properties
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

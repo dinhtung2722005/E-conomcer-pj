@@ -10,12 +10,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.ecommerce.dto.OrderResponse;
-import com.example.demo.ecommerce.dto.OrderStatusUpdateRequest;
+import com.example.demo.ecommerce.api.dto.OrderResponse;
+import com.example.demo.ecommerce.api.dto.OrderStatusUpdateRequest;
 import com.example.demo.ecommerce.service.OrderService;
-import com.example.demo.user.dto_request.ApiResponse;
-import com.example.demo.user.dto_request.PageQuery;
-import com.example.demo.user.dto_request.PageResponse;
+import com.example.demo.shared.web.ApiResponse;
+import com.example.demo.shared.web.PageQuery;
+import com.example.demo.shared.web.PageResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class OrderController {
 
     private final OrderService orderService;
+    private final com.example.demo.ecommerce.api.OrderWorkflowUseCase workflow;
 
     @GetMapping
     public ApiResponse<PageResponse<OrderResponse>> getAllOrders(@Valid @ModelAttribute PageQuery pagination) {
@@ -49,12 +50,12 @@ public class OrderController {
     public ApiResponse<OrderResponse> updateOrderStatus(@PathVariable Long id,
                                                         @Valid @RequestBody OrderStatusUpdateRequest request) {
         return new ApiResponse<>(200, "Cập nhật trạng thái thành công",
-                orderService.updateOrderStatus(id, request.getStatus()));
+                workflow.updateOrderStatus(id, request.getStatus()));
     }
 
     @PostMapping("/{id}/cancel")
     public ApiResponse<OrderResponse> cancelOrder(@PathVariable Long id) {
         return new ApiResponse<>(200, "Đã hủy đơn và hoàn trả kho thành công",
-                orderService.cancelOrder(id));
+                workflow.cancelOrder(id));
     }
 }

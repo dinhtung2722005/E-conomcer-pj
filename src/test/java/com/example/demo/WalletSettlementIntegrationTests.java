@@ -1,4 +1,17 @@
 package com.example.demo;
+import com.example.demo.ecommerce.api.OrderWorkflowUseCase;
+import com.example.demo.wallet.api.SettlementUseCase;
+import com.example.demo.wallet.api.OrderPaymentUseCase;
+import com.example.demo.ecommerce.service.WalletSettlementPolicy;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletBalanceType;
+import com.example.demo.ecommerce.api.ProductStatus;
+import com.example.demo.ecommerce.api.OrderStatus;
+import com.example.demo.shared.error.ErrorCode;
+import com.example.demo.shared.error.AppException;
+import com.example.demo.wallet.api.dto.RefundDecisionRequest;
+import com.example.demo.wallet.api.dto.RefundCaseRequest;
+import com.example.demo.wallet.api.dto.PayOrderRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,14 +35,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.demo.ecommerce.entity.*;
 import com.example.demo.ecommerce.repository.*;
-import com.example.demo.ecommerce.service.OrderService;
 import com.example.demo.support.IsolatedMySqlDatabase;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.UserRole;
-import com.example.demo.user.exception.*;
+import com.example.demo.user.api.UserRole;
+import com.example.demo.shared.error.*;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.user.security.UserPrincipal;
-import com.example.demo.wallet.dto.*;
+import com.example.demo.wallet.api.dto.*;
 import com.example.demo.wallet.entity.*;
 import com.example.demo.wallet.repository.*;
 import com.example.demo.wallet.service.*;
@@ -38,14 +50,14 @@ import com.example.demo.wallet.service.*;
         "wallet.settlement.fee-percent=10", "wallet.cashback.percent=5"})
 @ContextConfiguration(initializers = IsolatedMySqlDatabase.class)
 class WalletSettlementIntegrationTests {
-    @Autowired WalletSettlementService settlement;
+    @Autowired SettlementUseCase settlement;
     @Autowired WalletSettlementPolicy policy;
-    @Autowired WalletPaymentService payments;
+    @Autowired OrderPaymentUseCase payments;
     @Autowired WalletRefundService refunds;
     @Autowired WalletService walletService;
     @Autowired WalletLedgerService ledger;
     @Autowired WalletReconciliationService reconciliation;
-    @Autowired OrderService orderService;
+    @Autowired OrderWorkflowUseCase orderService;
     @Autowired UserRepository users;
     @Autowired WalletRepository wallets;
     @Autowired WalletSecurityRepository security;

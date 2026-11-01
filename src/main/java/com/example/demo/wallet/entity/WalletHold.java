@@ -1,4 +1,7 @@
 package com.example.demo.wallet.entity;
+import com.example.demo.wallet.api.WalletHoldStatus;
+import com.example.demo.wallet.api.WalletHoldType;
+import com.example.demo.wallet.api.WalletBalanceType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -8,7 +11,6 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import com.example.demo.ecommerce.entity.Order;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
@@ -42,6 +44,7 @@ import lombok.Setter;
 
 /** One hold per source of funds. CASH and BONUS for one order use separate holds. */
 @Entity
+@com.example.demo.wallet.validation.ValidHoldOwner
 @Table(name = "wallet_holds", uniqueConstraints = {
         @UniqueConstraint(name = "uk_wallet_hold_reference",
                 columnNames = {"wallet_id", "hold_type", "reference_id", "balance_type"}),
@@ -75,9 +78,8 @@ public class WalletHold {
     @NotNull
     private Wallet wallet;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", updatable = false)
-    private Order order;
+    @Column(name="order_id",updatable=false)
+    private Long orderId;
 
     @Column(name = "reference_id", nullable = false, length = 100, updatable = false)
     @NotBlank
@@ -198,9 +200,9 @@ public class WalletHold {
     @JsonIgnore
     public boolean isPurposeValid() {
         return type == null || switch (type) {
-            case ORDER_PAYMENT -> order != null && wallet != null && wallet.getUserId() != null
-                    && wallet.getUserId().equals(order.getUserId());
-            case WITHDRAWAL -> order == null && balanceType == WalletBalanceType.CASH;
+            // Order ownership is checked against the locked snapshot and opaque payment permit before creation.
+            case ORDER_PAYMENT -> orderId != null && wallet != null && wallet.getUserId() != null;
+            case WITHDRAWAL -> orderId == null && balanceType == WalletBalanceType.CASH;
         };
     }
 }
